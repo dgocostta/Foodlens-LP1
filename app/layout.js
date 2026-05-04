@@ -7,7 +7,15 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata = {
   title: 'FoodLens — Cinema Menus for Restaurants',
   description: 'Stop showing PDFs. Start selling vibes. Cinematic video menus that increase orders.',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#ff5a1f',
 }
 
 export default function RootLayout({ children }) {

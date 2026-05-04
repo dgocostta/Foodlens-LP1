@@ -18,8 +18,8 @@ import { DEMO_DISHES } from '@/lib/foodlens-data'
 
 const PhoneFrame = ({ children, className = '' }) => (
   <div className={`relative mx-auto ${className}`}>
-    <div className="relative w-[300px] h-[620px] sm:w-[340px] sm:h-[700px] rounded-[3rem] bg-zinc-900 border-[10px] border-zinc-800 shadow-2xl shadow-orange-500/10 overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-zinc-950 rounded-b-2xl z-30" />
+    <div className="relative w-[300px] h-[620px] sm:w-[340px] sm:h-[700px] md:w-[380px] md:h-[780px] rounded-[3rem] bg-zinc-900 border-[10px] md:border-[12px] border-zinc-800 shadow-2xl shadow-orange-500/10 overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 md:w-36 h-7 md:h-8 bg-zinc-950 rounded-b-2xl z-30" />
       <div className="absolute inset-0 rounded-[2.2rem] overflow-hidden">{children}</div>
     </div>
     <div className="absolute -inset-4 bg-orange-500/20 blur-3xl -z-10 rounded-full" />
@@ -235,22 +235,22 @@ export default function App() {
     <main className="relative min-h-screen bg-zinc-950 text-zinc-50">
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <Clapperboard size={16} className="text-white" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+              <Clapperboard size={18} className="text-white" />
             </div>
-            <span className="font-bold tracking-tight">FoodLens</span>
-            <Badge variant="outline" className="hidden sm:inline-flex ml-2 border-orange-500/40 text-orange-400 text-[10px]">FIELD APP</Badge>
+            <span className="font-bold tracking-tight text-base md:text-lg">FoodLens</span>
+            <Badge variant="outline" className="hidden sm:inline-flex ml-2 border-orange-500/40 text-orange-400 text-[10px] md:text-xs">FIELD APP</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:gap-3">
             <Link href="/presentation">
-              <Button size="sm" variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10">
-                <Presentation size={14} className="mr-1.5" /> Pitch
+              <Button variant="ghost" className="h-11 md:h-12 text-sm md:text-base px-4 md:px-5 text-zinc-300 hover:text-white hover:bg-white/10 tap-scale">
+                <Presentation size={16} className="mr-1.5" /> Pitch
               </Button>
             </Link>
-            <Button size="sm" onClick={scrollToForm} className="bg-orange-500 hover:bg-orange-600 text-white">
-              Get Started <ArrowRight size={14} className="ml-1" />
+            <Button onClick={scrollToForm} className="h-11 md:h-12 text-sm md:text-base px-5 md:px-6 bg-orange-500 hover:bg-orange-600 text-white font-semibold tap-scale">
+              Get Started <ArrowRight size={16} className="ml-1.5" />
             </Button>
           </div>
         </div>
@@ -267,28 +267,28 @@ export default function App() {
             <Badge variant="outline" className="mb-5 border-orange-500/40 bg-orange-500/10 text-orange-300">
               <Sparkles size={12} className="mr-1.5" /> Founding Member Offer — Limited
             </Badge>
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-balance leading-[1.05]">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-balance leading-[1.05]">
               Stop showing PDFs.<br />
               <span className="text-gradient-orange">Start selling vibes.</span>
             </h1>
-            <p className="mt-5 text-base sm:text-xl text-zinc-400 max-w-2xl mx-auto text-balance">
+            <p className="mt-5 md:mt-7 text-base sm:text-xl md:text-2xl text-zinc-400 max-w-2xl md:max-w-3xl mx-auto text-balance leading-relaxed">
               Your menu shouldn’t kill the appetite. FoodLens turns every dish into a 5-second cinema clip
               that <span className="text-orange-400 font-medium">sells itself</span>.
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button size="lg" onClick={scrollToForm} className="bg-orange-500 hover:bg-orange-600 text-white text-base px-7 h-12 glow-orange">
-                Claim 30 Days Free <ArrowRight size={16} className="ml-2" />
+            <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
+              <Button onClick={scrollToForm} className="tablet-btn-lg bg-orange-500 hover:bg-orange-600 text-white glow-orange tap-scale w-full sm:w-auto">
+                Claim 30 Days Free <ArrowRight size={20} className="ml-2" />
               </Button>
-              <Link href="/presentation">
-                <Button size="lg" variant="outline" className="border-zinc-700 hover:bg-white/5 text-base px-7 h-12 w-full sm:w-auto">
-                  <Presentation size={16} className="mr-2" /> Open Pitch Deck
+              <Link href="/presentation" className="w-full sm:w-auto">
+                <Button variant="outline" className="tablet-btn-lg border-zinc-700 hover:bg-white/5 hover:border-orange-500/50 tap-scale w-full sm:w-auto">
+                  <Presentation size={20} className="mr-2" /> Open Pitch Deck
                 </Button>
               </Link>
             </div>
-            <div className="mt-6 flex items-center justify-center gap-5 text-xs text-zinc-500">
-              <span className="flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> No credit card</span>
-              <span className="flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> We shoot the videos</span>
-              <span className="hidden sm:flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> Live in 48h</span>
+            <div className="mt-6 md:mt-8 flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-zinc-500">
+              <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> No credit card</span>
+              <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> We shoot the videos</span>
+              <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> Live in 48h</span>
             </div>
           </div>
 
@@ -369,51 +369,86 @@ export default function App() {
               </Button>
             </Card>
           ) : (
-            <Card className="bg-zinc-900/60 border-zinc-800 p-6 sm:p-8 backdrop-blur">
-              <form onSubmit={submit} className="space-y-5">
-                <div className="grid sm:grid-cols-2 gap-4">
+            <Card className="bg-zinc-900/60 border-zinc-800 p-6 sm:p-8 md:p-10 backdrop-blur">
+              <form onSubmit={submit} className="space-y-5 md:space-y-6">
+                <div className="grid sm:grid-cols-2 gap-4 md:gap-5">
                   <div>
-                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Store size={13} /> Restaurant Name *</Label>
-                    <Input value={form.restaurantName} onChange={(e) => setForm({...form, restaurantName: e.target.value})} placeholder="Trattoria da Mario" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                    <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base"><Store size={14} /> Restaurant Name *</Label>
+                    <Input
+                      value={form.restaurantName}
+                      onChange={(e) => setForm({...form, restaurantName: e.target.value})}
+                      placeholder="Trattoria da Mario"
+                      autoComplete="organization"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
+                      className="tablet-input bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 focus-visible:border-orange-500"
+                    />
                   </div>
                   <div>
-                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><User size={13} /> Owner / Manager *</Label>
-                    <Input value={form.ownerName} onChange={(e) => setForm({...form, ownerName: e.target.value})} placeholder="Mario Rossi" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                    <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base"><User size={14} /> Owner / Manager *</Label>
+                    <Input
+                      value={form.ownerName}
+                      onChange={(e) => setForm({...form, ownerName: e.target.value})}
+                      placeholder="Mario Rossi"
+                      autoComplete="name"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
+                      className="tablet-input bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 focus-visible:border-orange-500"
+                    />
                   </div>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4 md:gap-5">
                   <div>
-                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Instagram size={13} /> Instagram Handle</Label>
-                    <Input value={form.instagram} onChange={(e) => setForm({...form, instagram: e.target.value})} placeholder="@damario_roma" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                    <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base"><Instagram size={14} /> Instagram Handle</Label>
+                    <Input
+                      value={form.instagram}
+                      onChange={(e) => setForm({...form, instagram: e.target.value})}
+                      placeholder="@damario_roma"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck="false"
+                      inputMode="text"
+                      enterKeyHint="next"
+                      className="tablet-input bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 focus-visible:border-orange-500"
+                    />
                   </div>
                   <div>
-                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Phone size={13} /> Phone</Label>
-                    <Input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} placeholder="+39 ..." className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                    <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base"><Phone size={14} /> Phone</Label>
+                    <Input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm({...form, phone: e.target.value})}
+                      placeholder="+39 ..."
+                      autoComplete="tel"
+                      inputMode="tel"
+                      enterKeyHint="done"
+                      className="tablet-input bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 focus-visible:border-orange-500"
+                    />
                   </div>
                 </div>
 
                 {/* Dish upload */}
                 <div>
-                  <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm">
-                    <Camera size={13} /> Upload your first 5 dishes (optional — we film for you)
+                  <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base">
+                    <Camera size={14} /> Upload your first 5 dishes (optional — we film for you)
                   </Label>
                   <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={handleDishUpload} className="hidden" />
                   <button
                     type="button"
                     onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-zinc-700 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-8 text-center group"
+                    className="tap-scale w-full border-2 border-dashed border-zinc-700 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-8 md:p-12 text-center group"
                   >
-                    <Upload size={28} className="mx-auto mb-2 text-zinc-500 group-hover:text-orange-500 transition" />
-                    <div className="text-sm font-medium text-zinc-300">Tap to add photos or videos</div>
-                    <div className="text-xs text-zinc-500 mt-1">{dishes.length}/5 dishes</div>
+                    <Upload size={32} className="mx-auto mb-3 text-zinc-500 group-hover:text-orange-500 transition" />
+                    <div className="text-base md:text-lg font-semibold text-zinc-200">Tap to add photos or videos</div>
+                    <div className="text-xs md:text-sm text-zinc-500 mt-1.5">{dishes.length}/5 dishes</div>
                   </button>
                   {dishes.length > 0 && (
-                    <div className="mt-3 grid grid-cols-5 gap-2">
+                    <div className="mt-3 grid grid-cols-5 gap-2 md:gap-3">
                       {dishes.map((d, i) => (
-                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700">
                           <img src={d.preview} alt={d.name} className="w-full h-full object-cover" />
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
-                            <span className="text-[9px] text-white truncate block">{d.name}</span>
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                            <span className="text-[9px] md:text-[10px] text-white truncate block">{d.name}</span>
                           </div>
                         </div>
                       ))}
@@ -421,10 +456,10 @@ export default function App() {
                   )}
                 </div>
 
-                <Button type="submit" disabled={submitting} size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white h-13 text-base font-semibold glow-orange">
-                  {submitting ? 'Locking it in…' : (<>🔥 Claim My 30 Days Free <ArrowRight size={16} className="ml-2" /></>)}
+                <Button type="submit" disabled={submitting} className="tap-scale w-full tablet-btn-lg bg-orange-500 hover:bg-orange-600 text-white glow-orange">
+                  {submitting ? 'Locking it in…' : (<>🔥 Claim My 30 Days Free <ArrowRight size={20} className="ml-2" /></>)}
                 </Button>
-                <p className="text-xs text-center text-zinc-500">By signing up you agree to a free 30-day trial. Cancel anytime, no questions.</p>
+                <p className="text-xs md:text-sm text-center text-zinc-500">By signing up you agree to a free 30-day trial. Cancel anytime, no questions.</p>
               </form>
             </Card>
           )}
@@ -457,9 +492,9 @@ export default function App() {
               </Card>
             ))}
           </div>
-          <div className="mt-10 text-center">
-            <Button onClick={scrollToForm} size="lg" className="bg-orange-500 hover:bg-orange-600 text-white text-base px-8 h-12 glow-orange">
-              Join the Cause <ArrowRight size={16} className="ml-2" />
+          <div className="mt-10 md:mt-12 text-center">
+            <Button onClick={scrollToForm} className="tap-scale tablet-btn-lg bg-orange-500 hover:bg-orange-600 text-white glow-orange">
+              Join the Cause <ArrowRight size={20} className="ml-2" />
             </Button>
           </div>
         </div>
