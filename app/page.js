@@ -1,0 +1,484 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { toast } from 'sonner'
+import {
+  Play, Pause, ChevronUp, ChevronDown, Heart, Share2, Star, Sparkles,
+  Clapperboard, FileText, Camera, Instagram, Phone, Store, User,
+  Check, ArrowRight, Upload, Zap, Globe, Gift, ShieldCheck, Presentation,
+  Volume2, VolumeX, Lock
+} from 'lucide-react'
+import { DEMO_DISHES } from '@/lib/foodlens-data'
+
+const PhoneFrame = ({ children, className = '' }) => (
+  <div className={`relative mx-auto ${className}`}>
+    <div className="relative w-[300px] h-[620px] sm:w-[340px] sm:h-[700px] rounded-[3rem] bg-zinc-900 border-[10px] border-zinc-800 shadow-2xl shadow-orange-500/10 overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-zinc-950 rounded-b-2xl z-30" />
+      <div className="absolute inset-0 rounded-[2.2rem] overflow-hidden">{children}</div>
+    </div>
+    <div className="absolute -inset-4 bg-orange-500/20 blur-3xl -z-10 rounded-full" />
+  </div>
+)
+
+const CinemaMenu = () => {
+  const [idx, setIdx] = useState(0)
+  const [muted, setMuted] = useState(true)
+  const [liked, setLiked] = useState({})
+  const videoRefs = useRef({})
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    Object.entries(videoRefs.current).forEach(([key, v]) => {
+      if (!v) return
+      if (Number(key) === idx) {
+        v.play().catch(() => {})
+      } else {
+        v.pause()
+      }
+    })
+  }, [idx])
+
+  const next = () => setIdx((i) => Math.min(DEMO_DISHES.length - 1, i + 1))
+  const prev = () => setIdx((i) => Math.max(0, i - 1))
+
+  return (
+    <div ref={containerRef} className="relative h-full w-full bg-black">
+      {DEMO_DISHES.map((dish, i) => (
+        <div
+          key={dish.id}
+          className={`absolute inset-0 transition-transform duration-500 ease-out ${
+            i === idx ? 'translate-y-0' : i < idx ? '-translate-y-full' : 'translate-y-full'
+          }`}
+        >
+          <video
+            ref={(el) => (videoRefs.current[i] = el)}
+            src={dish.video}
+            poster={dish.poster}
+            loop
+            muted={muted}
+            playsInline
+            preload="metadata"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90" />
+          {/* Top bar */}
+          <div className="absolute top-8 left-0 right-0 px-4 flex items-center justify-between text-xs text-white/70">
+            <span className="font-medium tracking-wider">FOODLENS</span>
+            <button onClick={() => setMuted((m) => !m)} className="p-2 rounded-full bg-black/40 backdrop-blur">
+              {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
+          </div>
+          {/* Dish info */}
+          <div className="absolute bottom-0 left-0 right-0 p-5 pb-8 text-white">
+            <Badge className="mb-2 bg-orange-500 hover:bg-orange-500 text-white border-0">{dish.tag}</Badge>
+            <h3 className="text-2xl font-bold tracking-tight">{dish.name}</h3>
+            <p className="text-sm text-white/80 mt-1 leading-snug">{dish.desc}</p>
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-3xl font-bold text-gradient-orange">{dish.price}</div>
+              <div className="flex items-center gap-1 text-yellow-400 text-sm">
+                <Star size={14} fill="currentColor" /> 4.9
+              </div>
+            </div>
+            <button className="mt-4 w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-2xl text-sm transition active:scale-95">
+              Order • {dish.price}
+            </button>
+          </div>
+          {/* Side actions */}
+          <div className="absolute right-3 bottom-40 flex flex-col gap-4 items-center">
+            <button
+              onClick={() => setLiked((l) => ({ ...l, [dish.id]: !l[dish.id] }))}
+              className="p-2.5 rounded-full bg-black/40 backdrop-blur active:scale-90 transition"
+            >
+              <Heart
+                size={20}
+                className={liked[dish.id] ? 'text-orange-500 fill-orange-500' : 'text-white'}
+              />
+            </button>
+            <button className="p-2.5 rounded-full bg-black/40 backdrop-blur">
+              <Share2 size={20} className="text-white" />
+            </button>
+          </div>
+        </div>
+      ))}
+      {/* Nav controls */}
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20">
+        <button onClick={prev} disabled={idx === 0} className="p-2 rounded-full bg-white/10 backdrop-blur disabled:opacity-30">
+          <ChevronUp size={16} className="text-white" />
+        </button>
+        <button onClick={next} disabled={idx === DEMO_DISHES.length - 1} className="p-2 rounded-full bg-white/10 backdrop-blur disabled:opacity-30">
+          <ChevronDown size={16} className="text-white" />
+        </button>
+      </div>
+      {/* Progress dots */}
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-20">
+        {DEMO_DISHES.map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 rounded-full transition-all ${i === idx ? 'h-6 bg-orange-500' : 'h-1.5 bg-white/40'}`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const BoringPdfMenu = () => (
+  <div className="h-full w-full bg-zinc-100 text-zinc-900 overflow-hidden relative">
+    <div className="p-6 font-serif">
+      <h2 className="text-center text-xl font-bold mb-1 uppercase tracking-widest">Menu</h2>
+      <p className="text-center text-xs text-zinc-500 mb-4">Established 1987</p>
+      <div className="border-t border-b border-zinc-300 py-2 text-center text-xs uppercase tracking-wider mb-4">
+        Antipasti
+      </div>
+      {[
+        ['Bruschetta al pomodoro', '8.50'],
+        ['Insalata Caprese', '11.00'],
+        ['Carpaccio di manzo', '14.00'],
+        ['Burrata pugliese', '12.50'],
+      ].map(([name, price]) => (
+        <div key={name} className="flex justify-between text-xs py-1.5 border-b border-dotted border-zinc-300">
+          <span>{name}</span>
+          <span>€{price}</span>
+        </div>
+      ))}
+      <div className="border-t border-b border-zinc-300 py-2 text-center text-xs uppercase tracking-wider my-4">
+        Primi
+      </div>
+      {[
+        ['Spaghetti alla carbonara', '13.00'],
+        ['Risotto ai funghi porcini', '16.00'],
+        ['Pappardelle al tartufo', '24.00'],
+        ['Lasagna della casa', '14.00'],
+        ['Gnocchi al pesto', '12.00'],
+      ].map(([name, price]) => (
+        <div key={name} className="flex justify-between text-xs py-1.5 border-b border-dotted border-zinc-300">
+          <span>{name}</span>
+          <span>€{price}</span>
+        </div>
+      ))}
+      <div className="border-t border-b border-zinc-300 py-2 text-center text-xs uppercase tracking-wider my-4">
+        Secondi
+      </div>
+      {[
+        ['Bistecca alla fiorentina', '38.00'],
+        ['Branzino al forno', '26.00'],
+        ['Pollo al limone', '17.00'],
+      ].map(([name, price]) => (
+        <div key={name} className="flex justify-between text-xs py-1.5 border-b border-dotted border-zinc-300">
+          <span>{name}</span>
+          <span>€{price}</span>
+        </div>
+      ))}
+    </div>
+    <div className="absolute bottom-3 left-0 right-0 text-center text-[10px] text-zinc-400">page 1 of 4 • PDF</div>
+  </div>
+)
+
+export default function App() {
+  const [form, setForm] = useState({
+    restaurantName: '', ownerName: '', instagram: '', phone: '', email: '',
+  })
+  const [dishes, setDishes] = useState([])
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const fileRef = useRef(null)
+
+  const handleDishUpload = (e) => {
+    const files = Array.from(e.target.files || [])
+    const newDishes = files.slice(0, 5 - dishes.length).map((f) => ({
+      name: f.name,
+      preview: URL.createObjectURL(f),
+      size: f.size,
+    }))
+    setDishes([...dishes, ...newDishes])
+    if (newDishes.length) toast.success(`${newDishes.length} dish${newDishes.length > 1 ? 'es' : ''} added`)
+  }
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!form.restaurantName || !form.ownerName) {
+      toast.error('Restaurant name and your name are required')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          dishes: dishes.map((d) => ({ name: d.name, size: d.size })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed')
+      setSubmitted(true)
+      toast.success('You\'re in! Concierge setup starting now.')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const scrollToForm = () => {
+    document.getElementById('intake')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-50">
+      {/* NAV */}
+      <nav className="fixed top-0 left-0 right-0 z-50 glass">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+              <Clapperboard size={16} className="text-white" />
+            </div>
+            <span className="font-bold tracking-tight">FoodLens</span>
+            <Badge variant="outline" className="hidden sm:inline-flex ml-2 border-orange-500/40 text-orange-400 text-[10px]">FIELD APP</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/presentation">
+              <Button size="sm" variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10">
+                <Presentation size={14} className="mr-1.5" /> Pitch
+              </Button>
+            </Link>
+            <Button size="sm" onClick={scrollToForm} className="bg-orange-500 hover:bg-orange-600 text-white">
+              Get Started <ArrowRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 overflow-hidden">
+        <div className="absolute inset-0 grain opacity-40" />
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-orange-600/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 -right-20 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-4xl mx-auto">
+            <Badge variant="outline" className="mb-5 border-orange-500/40 bg-orange-500/10 text-orange-300">
+              <Sparkles size={12} className="mr-1.5" /> Founding Member Offer — Limited
+            </Badge>
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-balance leading-[1.05]">
+              Stop showing PDFs.<br />
+              <span className="text-gradient-orange">Start selling vibes.</span>
+            </h1>
+            <p className="mt-5 text-base sm:text-xl text-zinc-400 max-w-2xl mx-auto text-balance">
+              Your menu shouldn’t kill the appetite. FoodLens turns every dish into a 5-second cinema clip
+              that <span className="text-orange-400 font-medium">sells itself</span>.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button size="lg" onClick={scrollToForm} className="bg-orange-500 hover:bg-orange-600 text-white text-base px-7 h-12 glow-orange">
+                Claim 30 Days Free <ArrowRight size={16} className="ml-2" />
+              </Button>
+              <Link href="/presentation">
+                <Button size="lg" variant="outline" className="border-zinc-700 hover:bg-white/5 text-base px-7 h-12 w-full sm:w-auto">
+                  <Presentation size={16} className="mr-2" /> Open Pitch Deck
+                </Button>
+              </Link>
+            </div>
+            <div className="mt-6 flex items-center justify-center gap-5 text-xs text-zinc-500">
+              <span className="flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> No credit card</span>
+              <span className="flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> We shoot the videos</span>
+              <span className="hidden sm:flex items-center gap-1.5"><Check size={12} className="text-orange-500" /> Live in 48h</span>
+            </div>
+          </div>
+
+          {/* Side-by-side comparison */}
+          <div className="mt-16 sm:mt-24 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <div className="flex items-center gap-2 text-zinc-500 text-sm mb-4">
+                <FileText size={16} /> THE OLD WAY
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-zinc-300 mb-3">A boring PDF nobody reads.</h3>
+              <p className="text-zinc-500 mb-6">
+                Tiny black text. No photos. No story. Tourists squint, locals scroll past, and your
+                signature dish gets ignored. Your menu is your salesperson — don’t make it whisper.
+              </p>
+              <PhoneFrame>
+                <BoringPdfMenu />
+              </PhoneFrame>
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="flex items-center gap-2 text-orange-400 text-sm mb-4">
+                <Clapperboard size={16} /> THE FOODLENS WAY
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold mb-3">A cinema reel they can’t stop scrolling.</h3>
+              <p className="text-zinc-400 mb-6">
+                Every dish becomes a sizzling 5-second short. Sound. Steam. Sauce drizzle. Your customer
+                <span className="text-orange-400 font-medium"> orders with their eyes first</span>.
+              </p>
+              <PhoneFrame>
+                <CinemaMenu />
+              </PhoneFrame>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SOCIAL PROOF MARQUEE */}
+      <section className="py-8 border-y border-zinc-900 overflow-hidden bg-zinc-950">
+        <div className="flex animate-marquee whitespace-nowrap">
+          {[...Array(2)].map((_, j) => (
+            <div key={j} className="flex items-center gap-12 px-6 text-zinc-600 text-sm uppercase tracking-widest">
+              <span>+38% Avg Order Value</span><span>•</span>
+              <span>2.4x Time on Menu</span><span>•</span>
+              <span>+19% New Customers</span><span>•</span>
+              <span>4.8★ Owner Rating</span><span>•</span>
+              <span>Live in 48 Hours</span><span>•</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* INTAKE FORM */}
+      <section id="intake" className="relative py-20 sm:py-28">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orange-600/10 blur-3xl rounded-full" />
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <Badge className="bg-orange-500/15 text-orange-300 border-orange-500/30 mb-4" variant="outline">
+              <Zap size={12} className="mr-1.5" /> Lock In On The Spot
+            </Badge>
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-balance">
+              Let’s shoot your <span className="text-gradient-orange">first 5 dishes</span>
+            </h2>
+            <p className="mt-3 text-zinc-400 max-w-xl mx-auto">
+              Takes 60 seconds. No card. We come to your kitchen and film. You go live in 48 hours.
+            </p>
+          </div>
+
+          {submitted ? (
+            <Card className="bg-zinc-900/60 border-orange-500/30 p-8 sm:p-12 text-center backdrop-blur">
+              <div className="w-16 h-16 mx-auto rounded-full bg-orange-500 flex items-center justify-center mb-5">
+                <Check size={32} className="text-white" strokeWidth={3} />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold mb-2">Welcome to the family, {form.ownerName.split(' ')[0]}.</h3>
+              <p className="text-zinc-400 max-w-md mx-auto">
+                Patric will text you within 2 hours to schedule your concierge shoot. <strong className="text-orange-400">{form.restaurantName}</strong> is going cinematic.
+              </p>
+              <Button onClick={() => { setSubmitted(false); setForm({restaurantName:'',ownerName:'',instagram:'',phone:'',email:''}); setDishes([]) }} variant="outline" className="mt-6 border-zinc-700">
+                Sign Up Another Restaurant
+              </Button>
+            </Card>
+          ) : (
+            <Card className="bg-zinc-900/60 border-zinc-800 p-6 sm:p-8 backdrop-blur">
+              <form onSubmit={submit} className="space-y-5">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Store size={13} /> Restaurant Name *</Label>
+                    <Input value={form.restaurantName} onChange={(e) => setForm({...form, restaurantName: e.target.value})} placeholder="Trattoria da Mario" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><User size={13} /> Owner / Manager *</Label>
+                    <Input value={form.ownerName} onChange={(e) => setForm({...form, ownerName: e.target.value})} placeholder="Mario Rossi" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Instagram size={13} /> Instagram Handle</Label>
+                    <Input value={form.instagram} onChange={(e) => setForm({...form, instagram: e.target.value})} placeholder="@damario_roma" className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                  </div>
+                  <div>
+                    <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><Phone size={13} /> Phone</Label>
+                    <Input value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} placeholder="+39 ..." className="bg-zinc-950 border-zinc-800 h-11 focus-visible:ring-orange-500" />
+                  </div>
+                </div>
+
+                {/* Dish upload */}
+                <div>
+                  <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm">
+                    <Camera size={13} /> Upload your first 5 dishes (optional — we film for you)
+                  </Label>
+                  <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={handleDishUpload} className="hidden" />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-full border-2 border-dashed border-zinc-700 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-8 text-center group"
+                  >
+                    <Upload size={28} className="mx-auto mb-2 text-zinc-500 group-hover:text-orange-500 transition" />
+                    <div className="text-sm font-medium text-zinc-300">Tap to add photos or videos</div>
+                    <div className="text-xs text-zinc-500 mt-1">{dishes.length}/5 dishes</div>
+                  </button>
+                  {dishes.length > 0 && (
+                    <div className="mt-3 grid grid-cols-5 gap-2">
+                      {dishes.map((d, i) => (
+                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-zinc-800 border border-zinc-700">
+                          <img src={d.preview} alt={d.name} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1">
+                            <span className="text-[9px] text-white truncate block">{d.name}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Button type="submit" disabled={submitting} size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white h-13 text-base font-semibold glow-orange">
+                  {submitting ? 'Locking it in…' : (<>🔥 Claim My 30 Days Free <ArrowRight size={16} className="ml-2" /></>)}
+                </Button>
+                <p className="text-xs text-center text-zinc-500">By signing up you agree to a free 30-day trial. Cancel anytime, no questions.</p>
+              </form>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      {/* FOUNDING OFFER */}
+      <section className="relative py-20 sm:py-28 border-t border-zinc-900">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-300 mb-4">
+              <Gift size={12} className="mr-1.5" /> The Founding 100 Offer
+            </Badge>
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-balance">
+              Built for the <span className="text-gradient-orange">first 100 restaurants</span> only
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              { icon: Gift, title: '30 Days Free', desc: 'Full access. No credit card. No catch. Cancel anytime.' },
+              { icon: ShieldCheck, title: 'Concierge Setup', desc: 'We send a videographer to your kitchen. We shoot, edit, publish.' },
+              { icon: Globe, title: 'Auto Translations', desc: 'Tourists from any country read your menu in their language.' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <Card key={title} className="bg-zinc-900/60 border-zinc-800 p-6 hover:border-orange-500/40 transition group">
+                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4 group-hover:bg-orange-500/20 transition">
+                  <Icon size={22} className="text-orange-400" />
+                </div>
+                <h3 className="text-lg font-bold mb-1.5">{title}</h3>
+                <p className="text-sm text-zinc-400">{desc}</p>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-10 text-center">
+            <Button onClick={scrollToForm} size="lg" className="bg-orange-500 hover:bg-orange-600 text-white text-base px-8 h-12 glow-orange">
+              Join the Cause <ArrowRight size={16} className="ml-2" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-zinc-900 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+              <Clapperboard size={12} className="text-white" />
+            </div>
+            <span>FoodLens © 2025 — Cinema for restaurants</span>
+          </div>
+          <Link href="/admin" className="flex items-center gap-1.5 hover:text-orange-400 transition">
+            <Lock size={12} /> Admin
+          </Link>
+        </div>
+      </footer>
+    </main>
+  )
+}
