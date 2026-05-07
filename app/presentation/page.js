@@ -245,13 +245,24 @@ const SlideSolution = ({ active }) => (
           Visual. Interactive. High-conversion. Every dish becomes a sizzling 5-second short the customer scrolls
           like TikTok — and orders with their eyes.
         </p>
-        <div className="mt-8 md:mt-10 grid grid-cols-3 gap-3 md:gap-4">
+        <div className="mt-6 md:mt-8 p-5 md:p-6 rounded-2xl bg-gradient-to-br from-orange-500/15 via-orange-500/5 to-transparent border border-orange-500/30">
+          <div className="flex items-center gap-2 text-orange-300 text-xs md:text-sm font-semibold uppercase tracking-widest mb-2">
+            <TrendingUp size={16} /> The ACV Boost
+          </div>
+          <div className="text-3xl md:text-5xl font-bold leading-tight">
+            <span className="text-gradient-orange">+38% Average Cart Value</span>
+          </div>
+          <p className="text-sm md:text-base text-zinc-400 mt-2">
+            On a €50 ticket, that's <strong className="text-orange-400">€19 more per table</strong>. Across 30 tables a day,
+            <strong className="text-orange-400"> €17,000+ extra per month</strong>.
+          </p>
+        </div>
+        <div className="mt-5 md:mt-6 grid grid-cols-2 gap-3 md:gap-4">
           {[
             { icon: Eye, label: '2.4x', sub: 'time on menu' },
-            { icon: TrendingUp, label: '+38%', sub: 'avg. order' },
             { icon: Heart, label: '+19%', sub: 'new customers' },
           ].map((s) => (
-            <div key={s.label} className="glass rounded-2xl md:rounded-3xl p-4 md:p-6 text-center">
+            <div key={s.label} className="glass rounded-2xl md:rounded-3xl p-4 md:p-5 text-center">
               <s.icon size={20} className="mx-auto text-orange-400 mb-2" />
               <div className="text-2xl sm:text-3xl md:text-4xl font-bold">{s.label}</div>
               <div className="text-[10px] md:text-xs uppercase tracking-wider text-zinc-500 mt-1">{s.sub}</div>
@@ -300,20 +311,41 @@ const SlideOffer = ({ active }) => (
     </div>
     <div className="relative text-center">
       <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-300 mb-6 text-sm md:text-base py-1.5 px-3">
-        <Gift size={14} className="mr-1.5" /> 04 — The Founding Offer
+        <Gift size={14} className="mr-1.5" /> 04 — The Founding Restaurant Offer
       </Badge>
       <h2 className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight leading-[0.95] text-balance">
-        <span className="text-gradient-orange">30 Days Free.</span><br />
-        Full setup. Zero risk.
+        Be one of the<br />
+        <span className="text-gradient-orange">Founding 100.</span>
       </h2>
       <p className="mt-8 md:mt-10 text-lg sm:text-2xl md:text-3xl text-zinc-400 max-w-2xl md:max-w-3xl mx-auto">
-        We come. We film. We launch. You see results in <strong className="text-orange-400">48 hours</strong>.
-        If you don’t love it — walk away. No card. No catch.
+        We're hand-picking the first <strong className="text-orange-400">100 restaurants</strong> in your city to define
+        what cinema dining looks like. After that, the price triples — and the seat is gone.
       </p>
-      <div className="mt-10 md:mt-14 flex flex-wrap justify-center gap-3 md:gap-4 text-sm md:text-base">
-        {['No credit card', 'Cancel anytime', 'We shoot the videos', 'Live in 48h', 'Founding 100 only'].map((p) => (
-          <div key={p} className="glass rounded-full px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2">
-            <ShieldCheck size={16} className="text-orange-400" /> {p}
+
+      {/* Exclusivity counter */}
+      <div className="mt-10 md:mt-12 inline-flex flex-col items-center gap-2">
+        <div className="flex items-baseline gap-2 md:gap-3">
+          <span className="text-6xl md:text-8xl font-bold text-gradient-orange tabular-nums">37</span>
+          <span className="text-2xl md:text-3xl text-zinc-500 font-bold">/ 100</span>
+        </div>
+        <div className="text-xs md:text-sm uppercase tracking-[0.25em] text-zinc-500">Founding seats taken</div>
+        <div className="w-64 md:w-80 h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-2">
+          <div className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full" style={{ width: '37%' }} />
+        </div>
+      </div>
+
+      <div className="mt-10 md:mt-12 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 max-w-4xl mx-auto text-left">
+        {[
+          { title: '30 Days Free', desc: 'Full platform. No card. Cancel anytime.' },
+          { title: 'Concierge Setup', desc: 'Our crew films your kitchen for free.' },
+          { title: 'Founder Pricing', desc: 'Locked in for life. Never goes up.' },
+        ].map((p) => (
+          <div key={p.title} className="glass rounded-2xl p-4 md:p-5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <ShieldCheck size={16} className="text-orange-400" />
+              <div className="font-bold md:text-lg">{p.title}</div>
+            </div>
+            <p className="text-xs md:text-sm text-zinc-400">{p.desc}</p>
           </div>
         ))}
       </div>

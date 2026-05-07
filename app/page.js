@@ -12,7 +12,7 @@ import {
   Play, Pause, ChevronUp, ChevronDown, Heart, Share2, Star, Sparkles,
   Clapperboard, FileText, Camera, Instagram, Phone, Store, User,
   Check, ArrowRight, Upload, Zap, Globe, Gift, ShieldCheck, Presentation,
-  Volume2, VolumeX, Lock
+  Volume2, VolumeX, Lock, TrendingUp
 } from 'lucide-react'
 import { DEMO_DISHES } from '@/lib/foodlens-data'
 
@@ -218,11 +218,12 @@ export default function App() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
-      setSubmitted(true)
-      toast.success('You\'re in! Concierge setup starting now.')
+      toast.success("You're in. Let's see the magic.")
+      // Redirect to onboarding asset upload
+      const params = new URLSearchParams({ r: form.restaurantName, o: form.ownerName, id: data.lead?.id || '' })
+      window.location.href = `/onboarding?${params.toString()}`
     } catch (err) {
       toast.error(err.message)
-    } finally {
       setSubmitting(false)
     }
   }
@@ -468,20 +469,51 @@ export default function App() {
 
       {/* FOUNDING OFFER */}
       <section className="relative py-20 sm:py-28 border-t border-zinc-900">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8">
           <div className="text-center mb-12">
-            <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-300 mb-4">
-              <Gift size={12} className="mr-1.5" /> The Founding 100 Offer
+            <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-300 mb-4 py-1.5 px-3 text-sm">
+              <Gift size={14} className="mr-1.5" /> Founding Restaurant Offer
             </Badge>
-            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-balance">
-              Built for the <span className="text-gradient-orange">first 100 restaurants</span> only
+            <h2 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-balance">
+              For the first <span className="text-gradient-orange">100 restaurants</span> only.
             </h2>
+            <p className="mt-4 text-zinc-400 md:text-lg max-w-xl mx-auto">
+              Founder pricing. Locked in for life. After 100 — the price triples and the seat is gone.
+            </p>
+
+            {/* Spots counter */}
+            <div className="mt-6 inline-flex flex-col items-center gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl md:text-5xl font-bold text-gradient-orange tabular-nums">37</span>
+                <span className="text-lg text-zinc-500 font-bold">/ 100 taken</span>
+              </div>
+              <div className="w-56 md:w-64 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full" style={{ width: '37%' }} />
+              </div>
+            </div>
           </div>
+
+          {/* ACV Boost callout */}
+          <div className="max-w-3xl mx-auto mb-10 p-6 md:p-8 rounded-3xl bg-gradient-to-br from-orange-500/15 via-orange-500/5 to-transparent border border-orange-500/30">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
+              <div className="flex-shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center">
+                <TrendingUp size={28} className="text-orange-400" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs md:text-sm font-semibold uppercase tracking-widest text-orange-300">Real Result</div>
+                <div className="text-2xl md:text-4xl font-bold mt-1">+38% Average Cart Value</div>
+                <p className="text-sm md:text-base text-zinc-400 mt-1.5">
+                  €19 more per table. €17,000+ extra per month. Pays for the camera crew on day one.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { icon: Gift, title: '30 Days Free', desc: 'Full access. No credit card. No catch. Cancel anytime.' },
-              { icon: ShieldCheck, title: 'Concierge Setup', desc: 'We send a videographer to your kitchen. We shoot, edit, publish.' },
-              { icon: Globe, title: 'Auto Translations', desc: 'Tourists from any country read your menu in their language.' },
+              { icon: Gift, title: '30 Days Free', desc: 'No credit card. No catch. Cancel anytime, no questions.' },
+              { icon: ShieldCheck, title: 'Concierge Setup', desc: 'Our videographer comes to your kitchen. We shoot, edit, publish.' },
+              { icon: Globe, title: 'Auto Translations', desc: 'Tourists from any country read your menu in their own language.' },
             ].map(({ icon: Icon, title, desc }) => (
               <Card key={title} className="bg-zinc-900/60 border-zinc-800 p-6 hover:border-orange-500/40 transition group">
                 <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4 group-hover:bg-orange-500/20 transition">
@@ -494,7 +526,7 @@ export default function App() {
           </div>
           <div className="mt-10 md:mt-12 text-center">
             <Button onClick={scrollToForm} className="tap-scale tablet-btn-lg bg-orange-500 hover:bg-orange-600 text-white glow-orange">
-              Join the Cause <ArrowRight size={20} className="ml-2" />
+              Claim My Founding Seat <ArrowRight size={20} className="ml-2" />
             </Button>
           </div>
         </div>

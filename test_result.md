@@ -101,3 +101,90 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  FoodLens Field Sales — premium dark-mode, Action Orange in-person pitching app for restaurants.
+  Cinematic hero (PDF vs Cinema), interactive mobile demo (looping food videos), intake form,
+  optional onboarding asset upload page, founding 100 offer with ACV emphasis,
+  swipeable iPad-native presentation deck, protected admin leads dashboard.
+
+backend:
+  - task: "Leads API: POST /api/leads, GET /api/leads (admin-key gated, today filter)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Manual curl tests pass: POST creates lead with UUID; GET requires X-Admin-Key (foodlens2025), returns array; today=1 filter works; OPTIONS CORS works; unauth returns 401."
+        - working: true
+          agent: "testing"
+          comment: "Comprehensive automated testing completed - ALL TESTS PASSED (10/10). Verified: (1) POST /api/leads with valid full payload returns 200 with UUID v4 lead ID, (2) POST with minimal payload (only restaurantName + ownerName) works, (3) Missing restaurantName returns 400 error, (4) Missing ownerName returns 400 error, (5) GET without auth returns 401 unauthorized, (6) GET with wrong key returns 401, (7) GET with X-Admin-Key header returns 200 with leads array, (8) GET with ?key= query param works, (9) GET with ?today=1 filter returns only today's leads, (10) CORS OPTIONS preflight returns 204 with Access-Control-Allow-Origin: *. UUID validation confirmed - no MongoDB ObjectIds in responses."
+  - task: "Admin verify: POST /api/admin/verify"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Returns {ok:true} on correct key, 401 otherwise."
+        - working: true
+          agent: "testing"
+          comment: "Automated testing completed - ALL TESTS PASSED (2/2). Verified: (1) POST /api/admin/verify with correct key (foodlens2025) returns 200 {ok:true}, (2) POST with wrong key returns 401. Endpoint working as expected."
+
+frontend:
+  - task: "Field sales landing with cinema demo + intake → onboarding flow"
+    implemented: true
+    working: "NA"
+    file: "app/page.js, app/onboarding/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Visual screenshots verified at iPad viewport. Awaiting user field test."
+  - task: "Presentation Mode (swipeable, ACV + Founding 100 focus)"
+    implemented: true
+    working: "NA"
+    file: "app/presentation/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Visual screenshots verified."
+  - task: "Admin dashboard"
+    implemented: true
+    working: "NA"
+    file: "app/admin/page.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+
+metadata:
+  created_by: "main_agent"
+  version: "1.3"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Leads API"
+    - "Admin verify"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Backend exposes /api/leads (POST/GET) and /api/admin/verify. Admin key in env: ADMIN_KEY=foodlens2025. DB_NAME=foodlens. Please verify all API contracts including required field validation, admin-key gating, today filter, and CORS preflight."
+  - agent: "testing"
+    message: "Backend testing completed successfully. Executed comprehensive test suite with 14 test cases covering all endpoints and scenarios. RESULTS: 14/14 tests passed (100%). All API endpoints working correctly: health check, lead creation (full/minimal payloads), validation (missing fields return 400), authentication (header/query methods), authorization (401 for invalid/missing keys), today filter, admin verify, CORS preflight, and 404 handling. UUID v4 generation confirmed. No critical issues found. Backend is production-ready."
