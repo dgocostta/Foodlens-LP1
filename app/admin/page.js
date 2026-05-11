@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Clapperboard, RefreshCw, Users, Calendar, Instagram, Phone, Mail, ArrowLeft } from 'lucide-react'
+import { Lock, Clapperboard, RefreshCw, Users, Calendar, Instagram, Phone, Mail, ArrowLeft, Film, Save, RotateCcw, ExternalLink, Play } from 'lucide-react'
 import { toast } from 'sonner'
+import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -175,8 +176,96 @@ export default function AdminPage() {
             </table>
           </div>
         </Card>
+
+        <MediaManagement adminKey={key} />
       </div>
     </main>
+  )
+}
+
+const MediaManagement = ({ adminKey }) => {
+  const [dishes, setDishes] = useState(DEFAULT_DISHES)
+  const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings/media').then((r) => r.json()).then((d) => {
+      if (Array.isArray(d?.dishes) && d.dishes.length) setDishes(d.dishes)
+      setLoaded(true)
+    }).catch(() => setLoaded(true))
+  }, [])
+
+  const update = (i, field, value) => {
+    setDishes((arr) => arr.map((d, idx) => idx === i ? { ...d, [field]: value } : d))
+  }
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings/media', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ dishes }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      toast.success('Saved. The demo updates instantly on next page load.')
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const reset = () => {
+    setDishes(DEFAULT_DISHES)
+    toast.info('Reset to defaults. Click Save to persist.')
+  }
+
+  return (
+    <div className="mt-10">
+      <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Film size={18} className="text-orange-400" />
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Media Management</h2>
+          </div>
+          <p className="text-zinc-500 text-sm md:text-base">Paste mp4/webm URLs to replace demo videos. Free sources: <a href="https://www.pexels.com/videos/" target="_blank" rel="noreferrer" className="text-orange-400 hover:underline">pexels.com/videos <ExternalLink size={11} className="inline" /></a>, <a href="https://mixkit.co/free-stock-video/food/" target="_blank" rel="noreferrer" className="text-orange-400 hover:underline">mixkit.co/food <ExternalLink size={11} className="inline" /></a>, <a href="https://www.coverr.co/categories/food" target="_blank" rel="noreferrer" className="text-orange-400 hover:underline">coverr.co/food <ExternalLink size={11} className="inline" /></a>.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={reset} className="border-zinc-800"><RotateCcw size={13} className="mr-1.5" /> Reset</Button>
+          <Button size="sm" onClick={save} disabled={saving || !loaded} className="bg-orange-500 hover:bg-orange-600 text-white">
+            <Save size={13} className="mr-1.5" /> {saving ? 'Saving…' : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        {dishes.map((d, i) => (
+          <Card key={d.id} className="bg-zinc-900/60 border-zinc-800 p-5">
+            <div className="flex items-start gap-4">
+              <div className="relative w-24 h-32 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 flex-shrink-0">
+                {d.video ? (
+                  <video src={d.video} poster={d.poster} muted loop playsInline className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-700"><Play size={20} /></div>
+                )}
+                <div className="absolute top-1 left-1 text-[9px] font-bold bg-black/70 text-orange-400 px-1.5 py-0.5 rounded">#{i + 1}</div>
+              </div>
+              <div className="flex-1 space-y-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <Input value={d.name} onChange={(e) => update(i, 'name', e.target.value)} placeholder="Dish name" className="col-span-2 bg-zinc-950 border-zinc-800 h-9 text-sm" />
+                  <Input value={d.price} onChange={(e) => update(i, 'price', e.target.value)} placeholder="€24" className="bg-zinc-950 border-zinc-800 h-9 text-sm" />
+                </div>
+                <Input value={d.tag} onChange={(e) => update(i, 'tag', e.target.value)} placeholder="Chef's Pick" className="bg-zinc-950 border-zinc-800 h-9 text-sm" />
+                <Input value={d.desc} onChange={(e) => update(i, 'desc', e.target.value)} placeholder="One-line description" className="bg-zinc-950 border-zinc-800 h-9 text-sm" />
+                <Input value={d.video} onChange={(e) => update(i, 'video', e.target.value)} placeholder="https://...video.mp4" className="bg-zinc-950 border-zinc-800 h-9 text-xs font-mono" />
+                <Input value={d.poster} onChange={(e) => update(i, 'poster', e.target.value)} placeholder="Poster image URL (optional)" className="bg-zinc-950 border-zinc-800 h-9 text-xs font-mono" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
   )
 }
 

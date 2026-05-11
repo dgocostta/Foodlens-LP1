@@ -82,6 +82,34 @@ async function route(request, method) {
       }
     }
 
+    // Settings (media management)
+    if (resource === 'settings' && id === 'media') {
+      if (method === 'GET') {
+        const doc = await db.collection('settings').findOne({ key: 'media' }, { projection: { _id: 0 } })
+        return cors(NextResponse.json({ dishes: doc?.dishes || null }))
+      }
+      if (method === 'PUT') {
+        const adminKey = request.headers.get('x-admin-key')
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const body = await request.json()
+        const dishes = Array.isArray(body?.dishes) ? body.dishes.slice(0, 5).map((d, i) => ({
+          id: d.id || `d${i + 1}`,
+          name: String(d.name || '').slice(0, 80),
+          price: String(d.price || '').slice(0, 20),
+          tag: String(d.tag || '').slice(0, 30),
+          desc: String(d.desc || '').slice(0, 200),
+          video: String(d.video || '').slice(0, 500),
+          poster: String(d.poster || '').slice(0, 500),
+        })) : []
+        await db.collection('settings').updateOne(
+          { key: 'media' },
+          { $set: { key: 'media', dishes, updatedAt: new Date().toISOString() } },
+          { upsert: true }
+        )
+        return cors(NextResponse.json({ ok: true, dishes }))
+      }
+    }
+
     // Admin verify
     if (resource === 'admin' && id === 'verify' && method === 'POST') {
       const body = await request.json()

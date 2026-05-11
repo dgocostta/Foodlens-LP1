@@ -14,7 +14,7 @@ import {
   Check, ArrowRight, Upload, Zap, Globe, Gift, ShieldCheck, Presentation,
   Volume2, VolumeX, Lock, TrendingUp
 } from 'lucide-react'
-import { DEMO_DISHES } from '@/lib/foodlens-data'
+import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 
 const PhoneFrame = ({ children, className = '' }) => (
   <div className={`relative mx-auto ${className}`}>
@@ -30,8 +30,23 @@ const CinemaMenu = () => {
   const [idx, setIdx] = useState(0)
   const [muted, setMuted] = useState(true)
   const [liked, setLiked] = useState({})
+  const [dishes, setDishes] = useState(DEFAULT_DISHES)
   const videoRefs = useRef({})
   const containerRef = useRef(null)
+
+  // Fetch admin-managed dish overrides
+  useEffect(() => {
+    fetch('/api/settings/media')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d?.dishes) && d.dishes.length > 0) {
+          // Use override only if it has valid video URLs
+          const valid = d.dishes.filter((x) => x.video)
+          if (valid.length) setDishes(valid)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     Object.entries(videoRefs.current).forEach(([key, v]) => {
@@ -42,14 +57,14 @@ const CinemaMenu = () => {
         v.pause()
       }
     })
-  }, [idx])
+  }, [idx, dishes])
 
-  const next = () => setIdx((i) => Math.min(DEMO_DISHES.length - 1, i + 1))
+  const next = () => setIdx((i) => Math.min(dishes.length - 1, i + 1))
   const prev = () => setIdx((i) => Math.max(0, i - 1))
 
   return (
     <div ref={containerRef} className="relative h-full w-full bg-black">
-      {DEMO_DISHES.map((dish, i) => (
+      {dishes.map((dish, i) => (
         <div
           key={dish.id}
           className={`absolute inset-0 transition-transform duration-500 ease-out ${
@@ -67,14 +82,12 @@ const CinemaMenu = () => {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90" />
-          {/* Top bar */}
           <div className="absolute top-8 left-0 right-0 px-4 flex items-center justify-between text-xs text-white/70">
             <span className="font-medium tracking-wider">FOODLENS</span>
             <button onClick={() => setMuted((m) => !m)} className="p-2 rounded-full bg-black/40 backdrop-blur">
               {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
           </div>
-          {/* Dish info */}
           <div className="absolute bottom-0 left-0 right-0 p-5 pb-8 text-white">
             <Badge className="mb-2 bg-orange-500 hover:bg-orange-500 text-white border-0">{dish.tag}</Badge>
             <h3 className="text-2xl font-bold tracking-tight">{dish.name}</h3>
@@ -89,7 +102,6 @@ const CinemaMenu = () => {
               Order • {dish.price}
             </button>
           </div>
-          {/* Side actions */}
           <div className="absolute right-3 bottom-40 flex flex-col gap-4 items-center">
             <button
               onClick={() => setLiked((l) => ({ ...l, [dish.id]: !l[dish.id] }))}
@@ -106,18 +118,16 @@ const CinemaMenu = () => {
           </div>
         </div>
       ))}
-      {/* Nav controls */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 z-20">
         <button onClick={prev} disabled={idx === 0} className="p-2 rounded-full bg-white/10 backdrop-blur disabled:opacity-30">
           <ChevronUp size={16} className="text-white" />
         </button>
-        <button onClick={next} disabled={idx === DEMO_DISHES.length - 1} className="p-2 rounded-full bg-white/10 backdrop-blur disabled:opacity-30">
+        <button onClick={next} disabled={idx === dishes.length - 1} className="p-2 rounded-full bg-white/10 backdrop-blur disabled:opacity-30">
           <ChevronDown size={16} className="text-white" />
         </button>
       </div>
-      {/* Progress dots */}
       <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-20">
-        {DEMO_DISHES.map((_, i) => (
+        {dishes.map((_, i) => (
           <div
             key={i}
             className={`w-1 rounded-full transition-all ${i === idx ? 'h-6 bg-orange-500' : 'h-1.5 bg-white/40'}`}
