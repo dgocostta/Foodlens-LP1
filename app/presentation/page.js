@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useEmblaCarousel from 'embla-carousel-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Logo } from '@/components/logo'
 import {
   X, ChevronLeft, ChevronRight, FileText, Clapperboard, Sparkles,
   Globe, Instagram, Camera, Gift, ShieldCheck, ArrowRight, Heart,
@@ -72,10 +73,8 @@ export default function PresentationPage() {
       {/* Top control bar */}
       <div className="absolute top-0 left-0 right-0 z-50 px-4 sm:px-8 md:px-10 py-4 md:py-5 flex items-center justify-between pointer-events-none">
         <div className="flex items-center gap-2.5 pointer-events-auto">
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-            <Clapperboard size={16} className="text-white" />
-          </div>
-          <span className="font-bold text-sm md:text-base tracking-tight">FoodLens — The Pitch</span>
+          <Logo size="sm" />
+          <span className="hidden md:inline font-bold text-sm md:text-base tracking-tight text-zinc-300">— The Pitch</span>
         </div>
         <div className="flex items-center gap-3 md:gap-4 pointer-events-auto">
           <span className="text-xs md:text-sm text-zinc-400 font-mono tabular-nums">{String(selected + 1).padStart(2, '0')} / {String(SLIDES.length).padStart(2, '0')}</span>
@@ -159,6 +158,11 @@ const SlideIntro = ({ active }) => (
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] md:w-[600px] md:h-[600px] bg-orange-500/20 rounded-full blur-[100px]" />
     </div>
     <div className="relative text-center">
+      <img
+        src="https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png"
+        alt="FoodLens"
+        className="h-16 md:h-24 w-auto mx-auto mb-6 md:mb-8 drop-shadow-[0_4px_24px_rgba(255,90,31,0.5)]"
+      />
       <Badge variant="outline" className="border-orange-500/40 bg-orange-500/10 text-orange-300 mb-6 text-sm md:text-base py-1.5 px-3">
         <Sparkles size={14} className="mr-1.5" /> A 5-Minute Pitch
       </Badge>

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Lock, Clapperboard, RefreshCw, Users, Calendar, Instagram, Phone, Mail, ArrowLeft, Film, Save, RotateCcw, ExternalLink, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
+import { Logo } from '@/components/logo'
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -65,12 +66,10 @@ export default function AdminPage() {
       <main className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
         <Card className="bg-zinc-900 border-zinc-800 p-8 max-w-sm w-full">
           <div className="flex justify-center mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/15 flex items-center justify-center">
-              <Lock size={20} className="text-orange-400" />
-            </div>
+            <Logo size="lg" />
           </div>
           <h1 className="text-xl font-bold text-center mb-1">Admin Access</h1>
-          <p className="text-sm text-zinc-500 text-center mb-6">Enter your team key</p>
+          <p className="text-sm text-zinc-500 text-center mb-6 flex items-center justify-center gap-1.5"><Lock size={12} /> Enter your team key</p>
           <form onSubmit={(e) => { e.preventDefault(); tryLogin(key) }} className="space-y-3">
             <Input
               type="password"
@@ -98,10 +97,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/" className="p-1.5 rounded hover:bg-white/5"><ArrowLeft size={16} /></Link>
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <Clapperboard size={14} className="text-white" />
-            </div>
-            <span className="font-bold text-sm">FoodLens</span>
+            <Logo size="sm" />
             <Badge variant="outline" className="ml-1 border-orange-500/40 text-orange-400 text-[10px]">ADMIN</Badge>
           </div>
           <Button size="sm" variant="outline" onClick={() => loadLeads()} className="border-zinc-800">

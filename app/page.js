@@ -15,6 +15,7 @@ import {
   Volume2, VolumeX, Lock, TrendingUp
 } from 'lucide-react'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
+import { Logo } from '@/components/logo'
 
 const PhoneFrame = ({ children, className = '' }) => (
   <div className={`relative mx-auto ${className}`}>
@@ -83,7 +84,7 @@ const CinemaMenu = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90" />
           <div className="absolute top-8 left-0 right-0 px-4 flex items-center justify-between text-xs text-white/70">
-            <span className="font-medium tracking-wider">FOODLENS</span>
+            <img src="https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png" alt="FoodLens" className="h-4 w-auto opacity-80" />
             <button onClick={() => setMuted((m) => !m)} className="p-2 rounded-full bg-black/40 backdrop-blur">
               {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
@@ -247,12 +248,9 @@ export default function App() {
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <Clapperboard size={18} className="text-white" />
-            </div>
-            <span className="font-bold tracking-tight text-base md:text-lg">FoodLens</span>
-            <Badge variant="outline" className="hidden sm:inline-flex ml-2 border-orange-500/40 text-orange-400 text-[10px] md:text-xs">FIELD APP</Badge>
+          <div className="flex items-center gap-3">
+            <Logo size="sm" />
+            <Badge variant="outline" className="hidden sm:inline-flex border-orange-500/40 text-orange-400 text-[10px] md:text-xs">FIELD APP</Badge>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <Link href="/presentation">
@@ -545,11 +543,9 @@ export default function App() {
       {/* FOOTER */}
       <footer className="border-t border-zinc-900 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <Clapperboard size={12} className="text-white" />
-            </div>
-            <span>FoodLens © 2025 — Cinema for restaurants</span>
+          <div className="flex items-center gap-2.5">
+            <Logo size="xs" />
+            <span>© 2025 — Cinema for restaurants</span>
           </div>
           <Link href="/admin" className="flex items-center gap-1.5 hover:text-orange-400 transition">
             <Lock size={12} /> Admin

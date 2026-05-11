@@ -11,6 +11,7 @@ import {
   Clapperboard, Upload, ArrowRight, SkipForward, Sparkles, Check,
   Camera, Wand2, Star, TrendingUp
 } from 'lucide-react'
+import { Logo } from '@/components/logo'
 
 export default function OnboardingPage() {
   const search = useSearchParams()
@@ -40,10 +41,7 @@ export default function OnboardingPage() {
       <nav className="relative glass">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-              <Clapperboard size={18} className="text-white" />
-            </div>
-            <span className="font-bold tracking-tight md:text-lg">FoodLens</span>
+            <Logo size="sm" />
             <Badge variant="outline" className="ml-1 border-orange-500/40 text-orange-400 text-[10px] md:text-xs">STEP 2 OF 2</Badge>
           </div>
           <Link href="/admin" className="text-xs md:text-sm text-zinc-500 hover:text-orange-400">Skip for now →</Link>
@@ -123,7 +121,7 @@ export default function OnboardingPage() {
                     <>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/30" />
                       <div className="absolute top-8 left-0 right-0 px-3 flex justify-between text-[10px] text-white/70">
-                        <span className="font-medium tracking-widest">FOODLENS</span>
+                        <img src="https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png" alt="FoodLens" className="h-3 w-auto opacity-80" />
                         <span>LIVE</span>
                       </div>
                       <div className="absolute bottom-4 left-3 right-3 text-white animate-fade-up">
