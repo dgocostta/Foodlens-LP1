@@ -144,13 +144,14 @@ export default function AdminPage() {
                   <th className="text-left px-4 py-3">Owner</th>
                   <th className="text-left px-4 py-3">Instagram</th>
                   <th className="text-left px-4 py-3">Phone</th>
-                  <th className="text-left px-4 py-3">Dishes</th>
+                  <th className="text-left px-4 py-3">Photos</th>
+                  <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Time</th>
                 </tr>
               </thead>
               <tbody>
                 {leads.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-zinc-500">No leads yet. Go close some! 🔥</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-12 text-center text-zinc-500">No leads yet. Go close some! 🔥</td></tr>
                 )}
                 {leads.map((l) => (
                   <tr key={l.id} className="border-t border-zinc-800 hover:bg-white/[0.02]">
@@ -161,7 +162,29 @@ export default function AdminPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-400">{l.phone || <span className="text-zinc-600">—</span>}</td>
                     <td className="px-4 py-3">
-                      <Badge variant="outline" className="border-zinc-700 text-zinc-300">{(l.dishes || []).length}/5</Badge>
+                      {(l.photos || []).length === 0 ? (
+                        <span className="text-zinc-600">—</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          {(l.photos || []).slice(0, 4).map((p, i) =>
+                            p.url && /^image\//.test(p.contentType || '') ? (
+                              <a key={i} href={p.url} target="_blank" rel="noreferrer">
+                                <img src={p.url} alt={p.name || 'photo'} className="w-9 h-9 rounded object-cover border border-zinc-700 hover:border-orange-500" />
+                              </a>
+                            ) : (
+                              <a key={i} href={p.url || '#'} target="_blank" rel="noreferrer" className="w-9 h-9 rounded border border-zinc-700 hover:border-orange-500 flex items-center justify-center text-zinc-400">
+                                <Film size={14} />
+                              </a>
+                            ),
+                          )}
+                          {(l.photos || []).length > 4 && (
+                            <span className="text-xs text-zinc-500">+{(l.photos || []).length - 4}</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={l.status} />
                     </td>
                     <td className="px-4 py-3 text-zinc-500 text-xs">
                       {new Date(l.createdAt).toLocaleString()}
@@ -274,3 +297,26 @@ const StatCard = ({ icon: Icon, label, value }) => (
     <div className="text-xs text-zinc-500 mt-1 uppercase tracking-wider">{label}</div>
   </Card>
 )
+
+const STATUS_STYLES = {
+  new: 'border-zinc-600 text-zinc-300',
+  photos_uploaded: 'border-orange-500/50 text-orange-300',
+  video_generating: 'border-blue-500/50 text-blue-300',
+  video_sent: 'border-green-500/50 text-green-300',
+}
+
+const STATUS_LABELS = {
+  new: 'New',
+  photos_uploaded: 'Photos in',
+  video_generating: 'Video queued',
+  video_sent: 'Video sent',
+}
+
+const StatusBadge = ({ status }) => {
+  const s = status || 'new'
+  return (
+    <Badge variant="outline" className={STATUS_STYLES[s] || STATUS_STYLES.new}>
+      {STATUS_LABELS[s] || s}
+    </Badge>
+  )
+}

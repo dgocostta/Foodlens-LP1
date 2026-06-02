@@ -4,8 +4,9 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
-    // Remove if not using Server Components
-    serverComponentsExternalPackages: ['mongodb'],
+    // Keep the Firebase Admin SDK out of the bundler — it must run as a
+    // normal Node dependency on the server.
+    serverComponentsExternalPackages: ['firebase-admin'],
   },
   webpack(config, { dev }) {
     if (dev) {

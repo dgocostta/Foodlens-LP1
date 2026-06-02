@@ -18,18 +18,40 @@ export default function OnboardingPage() {
   const router = useRouter()
   const restaurantName = search.get('r') || 'Your restaurant'
   const ownerFirst = (search.get('o') || '').split(' ')[0] || 'there'
+  const leadId = search.get('id') || ''
   const [photo, setPhoto] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [done, setDone] = useState(false)
   const fileRef = useRef(null)
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     const f = e.target.files?.[0]
     if (!f) return
+    // Show an instant local preview while we upload for real.
     setPhoto({ name: f.name, url: URL.createObjectURL(f) })
-    // Simulate "magic" processing
     setProcessing(true)
-    setTimeout(() => { setProcessing(false); setDone(true) }, 1800)
+    setDone(false)
+
+    // Without a lead id we can't attach the photo to anyone.
+    if (!leadId) {
+      toast.error("Couldn't link this photo to your signup. Please go back and submit the form again.")
+      setProcessing(false)
+      return
+    }
+
+    try {
+      const body = new FormData()
+      body.append('file', f)
+      const res = await fetch(`/api/leads/${leadId}/photo`, { method: 'POST', body })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setProcessing(false)
+      setDone(true)
+      toast.success('Photo received — our team has it.')
+    } catch (err) {
+      setProcessing(false)
+      toast.error(err.message || 'Upload failed. Please try again.')
+    }
   }
 
   return (
