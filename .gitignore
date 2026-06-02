@@ -88,3 +88,5 @@ tests/
 test_reports/
 backend_test.py
 test_result.md
+
+.vercel

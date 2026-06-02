@@ -1,5 +1,5 @@
 const nextConfig = {
-  output: 'standalone',
+  // output: 'standalone',  // removed for Vercel compatibility
   images: {
     unoptimized: true,
   },
