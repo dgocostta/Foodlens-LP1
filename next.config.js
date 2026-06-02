@@ -7,6 +7,7 @@ const nextConfig = {
     // Keep the Firebase Admin SDK out of the bundler — it must run as a
     // normal Node dependency on the server.
     serverComponentsExternalPackages: ['firebase-admin'],
+    missingSuspenseWithCSRBailout: false,
   },
   webpack(config, { dev }) {
     if (dev) {

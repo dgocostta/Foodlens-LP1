@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 
-export default function OnboardingPage() {
+function OnboardingInner() {
   const search = useSearchParams()
   const router = useRouter()
   const restaurantName = search.get('r') || 'Your restaurant'
@@ -210,5 +210,13 @@ export default function OnboardingPage() {
         )}
       </section>
     </main>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingInner />
+    </Suspense>
   )
 }
