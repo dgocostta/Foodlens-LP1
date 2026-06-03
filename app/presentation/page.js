@@ -6,7 +6,7 @@ import useEmblaCarousel from 'embla-carousel-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Logo } from '@/components/logo'
-import { DEFAULT_DISHES } from '@/lib/foodlens-data'
+import { DEFAULT_DISHES, DEFAULT_DECK } from '@/lib/foodlens-data'
 import {
   X, ChevronLeft, ChevronRight, FileText, Clapperboard, Sparkles,
   Globe, Instagram, Camera, Gift, ShieldCheck, ArrowRight, Heart,
@@ -223,13 +223,12 @@ const SlideProblem = ({ active }) => (
 // Slide 3: Solution
 const SlideSolution = ({ active }) => {
   // Pull the first admin-managed dish so the deck matches the live menu (and never goes stale).
-  const [dish, setDish] = useState(DEFAULT_DISHES[0])
+  const [dish, setDish] = useState(DEFAULT_DECK)
   useEffect(() => {
     fetch('/api/settings/media')
       .then((r) => r.json())
       .then((d) => {
-        const first = Array.isArray(d?.dishes) ? d.dishes.find((x) => x.video || x.poster) : null
-        if (first) setDish(first)
+        if (d?.deck && (d.deck.video || d.deck.poster)) setDish(d.deck)
       })
       .catch(() => {})
   }, [])

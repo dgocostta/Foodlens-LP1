@@ -12,7 +12,7 @@ import {
   Video, ListChecks, Clapperboard, Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { DEFAULT_DISHES } from '@/lib/foodlens-data'
+import { DEFAULT_DISHES, DEFAULT_DECK } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
 import { uploadMediaFile } from '@/lib/upload'
 
@@ -370,11 +370,14 @@ const MediaManagement = ({ adminKey }) => {
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [uploadingIdx, setUploadingIdx] = useState(null)
+  const [deck, setDeck] = useState(DEFAULT_DECK)
   const fileRefs = useRef({})
+  const deckFileRef = useRef(null)
 
   useEffect(() => {
     fetch('/api/settings/media').then((r) => r.json()).then((d) => {
       if (Array.isArray(d?.dishes) && d.dishes.length) setDishes(d.dishes)
+      if (d?.deck) setDeck(d.deck)
       setLoaded(true)
     }).catch(() => setLoaded(true))
   }, [])
@@ -397,13 +400,29 @@ const MediaManagement = ({ adminKey }) => {
     }
   }
 
+  const updateDeck = (field, value) => setDeck((dk) => ({ ...dk, [field]: value }))
+
+  const uploadDeckClip = async (file) => {
+    if (!file) return
+    setUploadingIdx('deck')
+    try {
+      const fileUrl = await uploadMediaFile(file, adminKey)
+      updateDeck('video', fileUrl)
+      toast.success('Deck clip uploaded. Click Save to publish.')
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setUploadingIdx(null)
+    }
+  }
+
   const save = async () => {
     setSaving(true)
     try {
       const res = await fetch('/api/settings/media', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-        body: JSON.stringify({ dishes }),
+        body: JSON.stringify({ dishes, deck }),
       })
       if (!res.ok) throw new Error('Save failed')
       toast.success('Saved and published. The live menu now uses these.')
@@ -414,7 +433,7 @@ const MediaManagement = ({ adminKey }) => {
     }
   }
 
-  const reset = () => { setDishes(DEFAULT_DISHES); toast.info('Reset to defaults. Click Save to persist.') }
+  const reset = () => { setDishes(DEFAULT_DISHES); setDeck(DEFAULT_DECK); toast.info('Reset to defaults. Click Save to persist.') }
 
   return (
     <div>
@@ -433,6 +452,38 @@ const MediaManagement = ({ adminKey }) => {
           </Button>
         </div>
       </div>
+
+      <Card className="bg-zinc-900/60 border-orange-500/30 p-5 mb-4">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <Clapperboard size={16} className="text-orange-400" />
+          <h2 className="text-lg font-bold">Showcase deck — Solution slide</h2>
+          <span className="text-xs text-zinc-500">its own video, separate from the menu dishes</span>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="relative w-24 h-32 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 flex-shrink-0">
+            {deck.video ? (
+              <video src={deck.video} poster={deck.poster} muted loop playsInline className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-zinc-700"><Play size={20} /></div>
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="grid grid-cols-3 gap-2">
+              <Input value={deck.name} onChange={(e) => updateDeck('name', e.target.value)} placeholder="Dish name" className="col-span-2 bg-zinc-950 border-zinc-800 h-9 text-sm" />
+              <Input value={deck.price} onChange={(e) => updateDeck('price', e.target.value)} placeholder="€24" className="bg-zinc-950 border-zinc-800 h-9 text-sm" />
+            </div>
+            <Input value={deck.tag} onChange={(e) => updateDeck('tag', e.target.value)} placeholder="Chef's Pick" className="bg-zinc-950 border-zinc-800 h-9 text-sm" />
+            <Input value={deck.video} onChange={(e) => updateDeck('video', e.target.value)} placeholder="https://...video.mp4" className="bg-zinc-950 border-zinc-800 h-9 text-xs font-mono" />
+            <div className="flex items-center gap-2">
+              <input ref={deckFileRef} type="file" accept="video/*,image/*" className="hidden" onChange={(e) => uploadDeckClip(e.target.files?.[0])} />
+              <Button size="sm" variant="outline" disabled={uploadingIdx === 'deck'} onClick={() => deckFileRef.current?.click()} className="border-zinc-800 text-xs">
+                <Upload size={12} className="mr-1.5" /> {uploadingIdx === 'deck' ? 'Uploading…' : 'Upload clip'}
+              </Button>
+              <Input value={deck.poster} onChange={(e) => updateDeck('poster', e.target.value)} placeholder="Poster URL (optional)" className="bg-zinc-950 border-zinc-800 h-9 text-xs font-mono flex-1" />
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid lg:grid-cols-2 gap-4">
         {dishes.map((d, i) => (

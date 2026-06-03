@@ -390,7 +390,8 @@ async function route(request, method) {
       }
       if (method === 'GET') {
         const doc = await db.collection('settings').doc('media').get()
-        return cors(NextResponse.json({ dishes: doc.exists ? doc.data().dishes || null : null }))
+        const data = doc.exists ? doc.data() : {}
+        return cors(NextResponse.json({ dishes: data.dishes || null, deck: data.deck || null }))
       }
       if (method === 'PUT') {
         const adminKey = (request.headers.get('x-admin-key') || '').trim()
@@ -409,11 +410,18 @@ async function route(request, method) {
               poster: String(d.poster || '').slice(0, 500),
             }))
           : []
-        await db
-          .collection('settings')
-          .doc('media')
-          .set({ key: 'media', dishes, updatedAt: new Date().toISOString() }, { merge: true })
-        return cors(NextResponse.json({ ok: true, dishes }))
+        const deck = (body?.deck && typeof body.deck === 'object') ? {
+          name: String(body.deck.name || '').slice(0, 80),
+          price: String(body.deck.price || '').slice(0, 20),
+          tag: String(body.deck.tag || '').slice(0, 30),
+          desc: String(body.deck.desc || '').slice(0, 200),
+          video: String(body.deck.video || '').slice(0, 500),
+          poster: String(body.deck.poster || '').slice(0, 500),
+        } : null
+        const payload = { key: 'media', dishes, updatedAt: new Date().toISOString() }
+        if (deck) payload.deck = deck
+        await db.collection('settings').doc('media').set(payload, { merge: true })
+        return cors(NextResponse.json({ ok: true, dishes, deck }))
       }
     }
 
