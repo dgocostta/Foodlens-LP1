@@ -6,6 +6,7 @@ import useEmblaCarousel from 'embla-carousel-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Logo } from '@/components/logo'
+import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 import {
   X, ChevronLeft, ChevronRight, FileText, Clapperboard, Sparkles,
   Globe, Instagram, Camera, Gift, ShieldCheck, ArrowRight, Heart,
@@ -220,23 +221,41 @@ const SlideProblem = ({ active }) => (
 )
 
 // Slide 3: Solution
-const SlideSolution = ({ active }) => (
+const SlideSolution = ({ active }) => {
+  // Pull the first admin-managed dish so the deck matches the live menu (and never goes stale).
+  const [dish, setDish] = useState(DEFAULT_DISHES[0])
+  useEffect(() => {
+    fetch('/api/settings/media')
+      .then((r) => r.json())
+      .then((d) => {
+        const first = Array.isArray(d?.dishes) ? d.dishes.find((x) => x.video || x.poster) : null
+        if (first) setDish(first)
+      })
+      .catch(() => {})
+  }, [])
+
+  return (
   <SlideShell active={active}>
     <div className="grid lg:grid-cols-2 gap-10 md:gap-14 items-center">
       <div className="order-2 lg:order-1 relative">
         <div className="absolute -inset-12 bg-orange-500/20 blur-3xl rounded-full" />
         <div className="relative mx-auto w-[260px] h-[540px] md:w-[300px] md:h-[620px] rounded-[2.5rem] bg-zinc-900 border-[8px] md:border-[10px] border-zinc-800 shadow-2xl shadow-orange-500/30 overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 md:w-28 h-5 md:h-6 bg-zinc-950 rounded-b-xl z-10" />
-          <video
-            src="https://assets.mixkit.co/videos/4742/4742-720.mp4"
-            autoPlay loop muted playsInline
-            className="w-full h-full object-cover"
-          />
+          {dish.video ? (
+            <video
+              src={dish.video}
+              poster={dish.poster}
+              autoPlay loop muted playsInline
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img src={dish.poster} alt={dish.name} className="w-full h-full object-cover" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
           <div className="absolute bottom-6 left-4 right-4">
-            <Badge className="bg-orange-500 hover:bg-orange-500 text-white border-0 mb-2">Chef’s Pick</Badge>
-            <h3 className="text-xl md:text-2xl font-bold">Truffle Pappardelle</h3>
-            <div className="text-2xl md:text-3xl font-bold text-gradient-orange mt-1">€24</div>
+            <Badge className="bg-orange-500 hover:bg-orange-500 text-white border-0 mb-2">{dish.tag || 'Chef’s Pick'}</Badge>
+            <h3 className="text-xl md:text-2xl font-bold">{dish.name}</h3>
+            <div className="text-2xl md:text-3xl font-bold text-gradient-orange mt-1">{dish.price}</div>
           </div>
         </div>
       </div>
@@ -276,7 +295,8 @@ const SlideSolution = ({ active }) => (
       </div>
     </div>
   </SlideShell>
-)
+  )
+}
 
 // Slide 4: Tech
 const SlideTech = ({ active }) => (
