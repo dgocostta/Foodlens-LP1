@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
+import { uploadLeadFile } from '@/lib/upload'
 
 const PhoneFrame = ({ children, className = '' }) => (
   <div className={`relative mx-auto ${className}`}>
@@ -41,8 +42,9 @@ const CinemaMenu = () => {
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d?.dishes) && d.dishes.length > 0) {
-          // Use override only if it has valid video URLs
-          const valid = d.dishes.filter((x) => x.video)
+          // Keep any dish that has a video OR a poster image, so a half-saved
+          // entry (missing video) still renders its photo instead of vanishing.
+          const valid = d.dishes.filter((x) => x.video || x.poster)
           if (valid.length) setDishes(valid)
         }
       })
@@ -206,6 +208,7 @@ export default function App() {
       name: f.name,
       preview: URL.createObjectURL(f),
       size: f.size,
+      file: f,
     }))
     setDishes([...dishes, ...newDishes])
     if (newDishes.length) toast.success(`${newDishes.length} dish${newDishes.length > 1 ? 'es' : ''} added`)
@@ -229,9 +232,11 @@ export default function App() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed')
+      const newId = data.lead?.id || ''
+      // Upload the actual dish files in the background (don't block the redirect).
+      dishes.forEach((d) => { if (d.file) uploadLeadFile(newId, d.file).catch(() => {}) })
       toast.success("You're in. Let's see the magic.")
-      // Redirect to onboarding asset upload
-      const params = new URLSearchParams({ r: form.restaurantName, o: form.ownerName, id: data.lead?.id || '' })
+      const params = new URLSearchParams({ r: form.restaurantName, o: form.ownerName, id: newId })
       window.location.href = `/onboarding?${params.toString()}`
     } catch (err) {
       toast.error(err.message)

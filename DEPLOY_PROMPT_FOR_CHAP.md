@@ -1,5 +1,62 @@
 # Deployment task: ship the new FoodLens landing page to demo.foodlensgroup.com
 
+---
+## ⏩ CURRENT STATE — READ THIS FIRST (everything below this block is the original first-time setup, kept for reference)
+
+The site is **already live** at demo.foodlensgroup.com on the existing Vercel project
+(connected to `dgocostta/Foodlens-LP1`). Firestore, emails, and the admin all work.
+Billing is healthy (Blaze, Storage active). There is a batch of changes sitting in the
+local `foodlens-lp1` folder that needs to be pushed, plus one Storage CORS step.
+
+### Step 1 — Push the latest batch
+From the `foodlens-lp1` folder:
+
+    git add -A
+    git commit -m "Direct video uploads, real dish-photo uploads, onboarding instant+share, CRM detail, deck mobile polish"
+    git push origin main
+
+Vercel auto-deploys. Confirm the build goes green in the Deployments tab.
+
+What's in this batch: browser-direct video uploads (dodging Vercel's 4.5 MB function
+body limit), the main-form dish photos now actually upload, onboarding rebuilt as an
+instant-preview + thank-you/social-share step, the admin rebuilt as a mini-CRM
+(Leads/Media tabs, lead detail panel with pipeline stages + contact actions, Media
+clip upload), and mobile fixes (no sideways scroll, old/new order, deck arrows hidden
+on phones).
+
+### Step 2 — One-time Storage CORS rule (REQUIRED for video uploads)
+Videos upload straight from the browser to Firebase Storage, which the bucket must
+allow via CORS. Photos already work without this; videos will fail until it's set.
+Easiest path — Google Cloud Shell (already authenticated, nothing to install):
+
+1. console.cloud.google.com → select project **foodlens-backend** → open Cloud Shell (>_).
+2. Run:
+
+    cat > cors.json <<'JSON'
+    [
+      { "origin": ["https://demo.foodlensgroup.com","https://foodlensgroup.com","https://www.foodlensgroup.com","http://localhost:3000"],
+        "method": ["GET","PUT","HEAD"], "responseHeader": ["Content-Type"], "maxAgeSeconds": 3600 }
+    ]
+    JSON
+    gcloud storage buckets update gs://foodlens-backend-bf4e1.firebasestorage.app --cors-file=cors.json
+
+   (A ready copy of this file is also committed as `storage-cors.json` in the repo.)
+3. Verify: `gcloud storage buckets describe gs://foodlens-backend-bf4e1.firebasestorage.app --format="default(cors_config)"`
+
+### Step 3 — Verify
+- Admin → Media: upload a short **video** clip → Save & Publish → it appears on the live menu. (If it errors with a CORS message, Step 2 didn't take.)
+- Public site: submit a signup with 1–2 dish **photos** → they show in the lead's gallery in Admin.
+- Admin: click a lead → move it through pipeline stages, use the email/WhatsApp/Instagram quick actions.
+- On a phone: no sideways drag; the deck (/presentation) has no side arrows and nothing overlapping.
+
+### Notes
+- Env vars (Firebase, Resend, ADMIN_KEY) are already set — nothing to change.
+- The admin "Generate video" button is an intentional stub until a Kling/Hedra key is added.
+- Whoever runs the CORS command needs Storage Admin / Editor on the project. If Chap
+  lacks access, Diego runs Step 2 himself in Cloud Shell (2 min).
+---
+
+
 You are deploying a Next.js app. The code is already written and verified — your
 job is to get it onto GitHub, wire up Firebase Storage, point Vercel at it, set
 environment variables, and verify it works. Do NOT rewrite the app logic.

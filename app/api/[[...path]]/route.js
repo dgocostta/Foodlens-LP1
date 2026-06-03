@@ -75,6 +75,38 @@ async function route(request, method) {
 
     const db = getDb()
 
+    // Direct-to-Storage signed upload URL (bypasses the serverless body-size limit; for large files/videos)
+    if (resource === 'uploads' && id === 'sign' && method === 'POST') {
+      const bucket = getBucket()
+      if (!bucket) return cors(NextResponse.json({ error: 'Storage not configured (missing FIREBASE_STORAGE_BUCKET).' }, { status: 503 }))
+      const body = await request.json()
+      const scope = body?.scope
+      const contentType = String(body?.contentType || 'application/octet-stream')
+      if (!/^image\//.test(contentType) && !/^video\//.test(contentType)) {
+        return cors(NextResponse.json({ error: 'only image or video files are allowed' }, { status: 400 }))
+      }
+      const safeName = String(body?.filename || 'upload').replace(/[^\w.\-]+/g, '_').slice(-80)
+      let storagePath
+      if (scope === 'media') {
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        storagePath = `media/${uuidv4()}-${safeName}`
+      } else if (scope === 'lead') {
+        if (!db) return notConfigured()
+        const leadId = String(body?.leadId || '')
+        if (!leadId) return cors(NextResponse.json({ error: 'leadId required' }, { status: 400 }))
+        const snap = await db.collection('leads').doc(leadId).get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        storagePath = `leads/${leadId}/${uuidv4()}-${safeName}`
+      } else {
+        return cors(NextResponse.json({ error: 'invalid scope' }, { status: 400 }))
+      }
+      const [uploadUrl] = await bucket.file(storagePath).getSignedUrl({
+        version: 'v4', action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType,
+      })
+      return cors(NextResponse.json({ ok: true, uploadUrl, path: storagePath, contentType }))
+    }
+
     // Leads
     if (resource === 'leads') {
       // Photo upload: POST /api/leads/<id>/photo (multipart/form-data)
@@ -144,6 +176,28 @@ async function route(request, method) {
         )
 
         const signedUrl = await signedUrlFor(storagePath)
+        return cors(NextResponse.json({ ok: true, photo: { ...photo, url: signedUrl } }))
+      }
+
+      // Record a direct-uploaded file: POST /api/leads/<id>/photo-record
+      if (id && sub === 'photo-record' && method === 'POST') {
+        if (!db) return notConfigured()
+        const ref = db.collection('leads').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        const body = await request.json()
+        const filePath = String(body?.path || '')
+        if (!filePath.startsWith(`leads/${id}/`)) return cors(NextResponse.json({ error: 'invalid path' }, { status: 400 }))
+        const photo = {
+          path: filePath,
+          name: String(body?.name || 'upload').slice(0, 120),
+          contentType: String(body?.contentType || 'application/octet-stream').slice(0, 80),
+          size: Number(body?.size) || 0,
+          uploadedAt: new Date().toISOString(),
+        }
+        const { FieldValue } = await import('firebase-admin/firestore')
+        await ref.set({ photos: FieldValue.arrayUnion(photo), status: 'photos_uploaded', updatedAt: new Date().toISOString() }, { merge: true })
+        const signedUrl = await signedUrlFor(filePath)
         return cors(NextResponse.json({ ok: true, photo: { ...photo, url: signedUrl } }))
       }
 
@@ -320,6 +374,19 @@ async function route(request, method) {
           metadata: { metadata: { firebaseStorageDownloadTokens: token }, cacheControl: 'public, max-age=31536000' },
         })
         return cors(NextResponse.json({ ok: true, url: downloadUrl(bucket.name, storagePath, token), contentType }))
+      }
+      // Finalize a direct-uploaded media clip (durable download URL): POST /api/settings/media/finalize
+      if (sub === 'finalize' && method === 'POST') {
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const bucket = getBucket()
+        if (!bucket) return cors(NextResponse.json({ error: 'Storage not configured.' }, { status: 503 }))
+        const body = await request.json()
+        const filePath = String(body?.path || '')
+        if (!filePath.startsWith('media/')) return cors(NextResponse.json({ error: 'invalid path' }, { status: 400 }))
+        const token = uuidv4()
+        await bucket.file(filePath).setMetadata({ metadata: { firebaseStorageDownloadTokens: token }, cacheControl: 'public, max-age=31536000' })
+        return cors(NextResponse.json({ ok: true, url: downloadUrl(bucket.name, filePath, token) }))
       }
       if (method === 'GET') {
         const doc = await db.collection('settings').doc('media').get()

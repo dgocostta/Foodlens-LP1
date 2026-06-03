@@ -121,7 +121,7 @@ export default function PresentationPage() {
         onClick={() => emblaApi?.scrollPrev()}
         disabled={selected === 0}
         aria-label="Previous slide"
-        className="tap-scale absolute left-3 sm:left-6 md:left-8 top-1/2 -translate-y-1/2 z-50 w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center hover:bg-white/10 active:bg-white/15 transition disabled:opacity-20 disabled:cursor-not-allowed"
+        className="tap-scale absolute left-3 sm:left-6 md:left-8 top-1/2 -translate-y-1/2 z-50 w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 hidden sm:flex items-center justify-center hover:bg-white/10 active:bg-white/15 transition disabled:opacity-20 disabled:cursor-not-allowed"
       >
         <ChevronLeft size={24} />
       </button>
@@ -129,21 +129,21 @@ export default function PresentationPage() {
         onClick={() => emblaApi?.scrollNext()}
         disabled={selected === SLIDES.length - 1}
         aria-label="Next slide"
-        className="tap-scale absolute right-3 sm:right-6 md:right-8 top-1/2 -translate-y-1/2 z-50 w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 flex items-center justify-center hover:bg-white/10 active:bg-white/15 transition disabled:opacity-20 disabled:cursor-not-allowed"
+        className="tap-scale absolute right-3 sm:right-6 md:right-8 top-1/2 -translate-y-1/2 z-50 w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 hidden sm:flex items-center justify-center hover:bg-white/10 active:bg-white/15 transition disabled:opacity-20 disabled:cursor-not-allowed"
       >
         <ChevronRight size={24} />
       </button>
 
       {/* Bottom hint */}
       <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-40 text-[10px] md:text-xs uppercase tracking-[0.2em] text-zinc-600">
-        Swipe → or tap arrows
+        Swipe to navigate →
       </div>
     </main>
   )
 }
 
 const SlideShell = ({ children, active, className = '' }) => (
-  <div className={`flex-[0_0_100%] min-w-0 h-screen flex items-center justify-center px-6 sm:px-12 md:px-16 relative ${className}`}>
+  <div className={`flex-[0_0_100%] min-w-0 h-screen flex items-center justify-center px-6 sm:px-12 md:px-16 py-24 sm:py-0 relative ${className}`}>
     <div className={`w-full max-w-6xl mx-auto transition-all duration-700 ease-out ${active ? 'opacity-100 scale-100' : 'opacity-40 scale-[0.97]'}`}>
       {children}
     </div>

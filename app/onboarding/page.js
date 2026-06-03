@@ -12,6 +12,7 @@ import {
   Instagram, PartyPopper, Wand2,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
+import { uploadLeadFile } from '@/lib/upload'
 
 function OnboardingInner() {
   const search = useSearchParams()
@@ -38,11 +39,7 @@ function OnboardingInner() {
       return
     }
     try {
-      const body = new FormData()
-      body.append('file', file)
-      const res = await fetch(`/api/leads/${leadId}/photo`, { method: 'POST', body })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      await uploadLeadFile(leadId, file)
       setUploading(false)
       setDone(true)
       toast.success('Got it — your dish is in.')

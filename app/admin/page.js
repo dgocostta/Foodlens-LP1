@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
+import { uploadMediaFile } from '@/lib/upload'
 
 const PIPELINE = ['new', 'contacted', 'photos_uploaded', 'video_generating', 'video_sent', 'won', 'lost']
 
@@ -386,14 +387,8 @@ const MediaManagement = ({ adminKey }) => {
     if (!file) return
     setUploadingIdx(i)
     try {
-      const body = new FormData()
-      body.append('file', file)
-      const res = await fetch('/api/settings/media/upload', {
-        method: 'POST', headers: { 'X-Admin-Key': adminKey }, body,
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
-      update(i, 'video', data.url)
+      const fileUrl = await uploadMediaFile(file, adminKey)
+      update(i, 'video', fileUrl)
       toast.success('Clip uploaded. Click Save to publish.')
     } catch (e) {
       toast.error(e.message)
