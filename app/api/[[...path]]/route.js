@@ -46,6 +46,11 @@ async function signedUrlFor(path) {
   }
 }
 
+// Build a durable Firebase download-token URL (does not expire — use for public media).
+function downloadUrl(bucketName, path, token) {
+  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media&token=${token}`
+}
+
 export async function OPTIONS() {
   return cors(new NextResponse(null, { status: 204 }))
 }
@@ -234,6 +239,25 @@ async function route(request, method) {
         return cors(NextResponse.json({ leads }))
       }
 
+      // Update lead status / note: PUT /api/leads/<id> (admin)
+      if (id && !sub && method === 'PUT') {
+        if (!db) return notConfigured()
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) {
+          return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        }
+        const ref = db.collection('leads').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        const body = await request.json()
+        const ALLOWED = ['new', 'contacted', 'photos_uploaded', 'video_generating', 'video_sent', 'won', 'lost']
+        const update = { updatedAt: new Date().toISOString() }
+        if (body?.status && ALLOWED.includes(body.status)) update.status = body.status
+        if (typeof body?.note === 'string') update.note = body.note.slice(0, 2000)
+        await ref.set(update, { merge: true })
+        return cors(NextResponse.json({ ok: true, ...update }))
+      }
+
       // Generate video: POST /api/leads/<id>/generate-video (admin)
       // GROUNDWORK ONLY. The video tool/pipeline isn't chosen yet, so this
       // endpoint just marks the lead as queued. Replace the marked section
@@ -272,6 +296,31 @@ async function route(request, method) {
     // Settings (media management for the demo dishes)
     if (resource === 'settings' && id === 'media') {
       if (!db) return notConfigured()
+      // Upload a clip for a demo dish: POST /api/settings/media/upload (admin)
+      if (sub === 'upload' && method === 'POST') {
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const bucket = getBucket()
+        if (!bucket) return cors(NextResponse.json({ error: 'Storage not configured (missing FIREBASE_STORAGE_BUCKET).' }, { status: 503 }))
+        const formData = await request.formData()
+        const file = formData.get('file')
+        if (!file || typeof file.arrayBuffer !== 'function') return cors(NextResponse.json({ error: 'file is required' }, { status: 400 }))
+        const contentType = file.type || 'application/octet-stream'
+        if (!/^image\//.test(contentType) && !/^video\//.test(contentType)) {
+          return cors(NextResponse.json({ error: 'only image or video files are allowed' }, { status: 400 }))
+        }
+        const buffer = Buffer.from(await file.arrayBuffer())
+        if (buffer.length > MAX_UPLOAD_BYTES) return cors(NextResponse.json({ error: 'file too large (max 20MB)' }, { status: 413 }))
+        const safeName = String(file.name || 'clip').replace(/[^\w.\-]+/g, '_').slice(-80)
+        const token = uuidv4()
+        const storagePath = `media/${uuidv4()}-${safeName}`
+        await bucket.file(storagePath).save(buffer, {
+          contentType,
+          resumable: false,
+          metadata: { metadata: { firebaseStorageDownloadTokens: token }, cacheControl: 'public, max-age=31536000' },
+        })
+        return cors(NextResponse.json({ ok: true, url: downloadUrl(bucket.name, storagePath, token), contentType }))
+      }
       if (method === 'GET') {
         const doc = await db.collection('settings').doc('media').get()
         return cors(NextResponse.json({ dishes: doc.exists ? doc.data().dishes || null : null }))

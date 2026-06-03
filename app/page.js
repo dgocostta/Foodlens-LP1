@@ -370,7 +370,7 @@ export default function App() {
               </div>
               <h3 className="text-2xl sm:text-3xl font-bold mb-2">Welcome to the family, {form.ownerName.split(' ')[0]}.</h3>
               <p className="text-zinc-400 max-w-md mx-auto">
-                Patric will text you within 2 hours to get your first dishes live. <strong className="text-orange-400">{form.restaurantName}</strong> is going cinematic.
+                We'll be in touch shortly to get your first dishes live. <strong className="text-orange-400">{form.restaurantName}</strong> is going cinematic.
               </p>
               <Button onClick={() => { setSubmitted(false); setForm({restaurantName:'',ownerName:'',instagram:'',phone:'',email:''}); setDishes([]) }} variant="outline" className="mt-6 border-zinc-700">
                 Sign Up Another Restaurant
