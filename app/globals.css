@@ -29,6 +29,12 @@
     font-feature-settings: "cv11", "ss01";
     letter-spacing: -0.011em;
   }
+  /* Prevent diagonal swipes from dragging the page sideways on mobile.
+     overflow-x: clip is sticky-safe (won't break position: sticky). */
+  html, body {
+    overflow-x: clip;
+    max-width: 100%;
+  }
 }
 
 @layer utilities {

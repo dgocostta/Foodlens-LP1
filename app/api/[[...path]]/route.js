@@ -6,7 +6,7 @@ import { sendLeadNotification, sendWelcomeEmail } from '@/lib/email'
 // firebase-admin needs the Node.js runtime (not edge)
 export const runtime = 'nodejs'
 
-const ADMIN_KEY = process.env.ADMIN_KEY || 'foodlens2025'
+const ADMIN_KEY = (process.env.ADMIN_KEY || 'foodlens2025').trim()
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024 // 20 MB
 const SIGNED_URL_TTL_MS = 60 * 60 * 1000 // 1 hour
 
@@ -64,7 +64,7 @@ async function route(request, method) {
     // Admin verify
     if (resource === 'admin' && id === 'verify' && method === 'POST') {
       const body = await request.json()
-      if (body?.key === ADMIN_KEY) return cors(NextResponse.json({ ok: true }))
+      if (String(body?.key || '').trim() === ADMIN_KEY) return cors(NextResponse.json({ ok: true }))
       return cors(NextResponse.json({ ok: false }, { status: 401 }))
     }
 
@@ -202,7 +202,7 @@ async function route(request, method) {
       // List leads: GET /api/leads (admin)
       if (!id && method === 'GET') {
         if (!db) return notConfigured()
-        const adminKey = request.headers.get('x-admin-key') || url.searchParams.get('key')
+        const adminKey = (request.headers.get('x-admin-key') || url.searchParams.get('key') || '').trim()
         if (adminKey !== ADMIN_KEY) {
           return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
         }
@@ -240,7 +240,7 @@ async function route(request, method) {
       // with a real call to your video service when ready.
       if (id && sub === 'generate-video' && method === 'POST') {
         if (!db) return notConfigured()
-        const adminKey = request.headers.get('x-admin-key')
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
         if (adminKey !== ADMIN_KEY) {
           return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
         }
@@ -277,7 +277,7 @@ async function route(request, method) {
         return cors(NextResponse.json({ dishes: doc.exists ? doc.data().dishes || null : null }))
       }
       if (method === 'PUT') {
-        const adminKey = request.headers.get('x-admin-key')
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
         if (adminKey !== ADMIN_KEY) {
           return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
         }

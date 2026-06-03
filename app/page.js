@@ -12,7 +12,7 @@ import {
   Play, Pause, ChevronUp, ChevronDown, Heart, Share2, Star, Sparkles,
   Clapperboard, FileText, Camera, Instagram, Phone, Store, User,
   Check, ArrowRight, Upload, Zap, Globe, Gift, ShieldCheck, Presentation,
-  Volume2, VolumeX, Lock, TrendingUp
+  Volume2, VolumeX, Lock, TrendingUp, Mail
 } from 'lucide-react'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
@@ -244,18 +244,17 @@ export default function App() {
   }
 
   return (
-    <main className="relative min-h-screen bg-zinc-950 text-zinc-50">
+    <main className="relative min-h-screen bg-zinc-950 text-zinc-50 overflow-x-hidden">
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
-            <Badge variant="outline" className="hidden sm:inline-flex border-orange-500/40 text-orange-400 text-[10px] md:text-xs">FIELD APP</Badge>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <Link href="/presentation">
               <Button variant="ghost" className="h-11 md:h-12 text-sm md:text-base px-4 md:px-5 text-zinc-300 hover:text-white hover:bg-white/10 tap-scale">
-                <Presentation size={16} className="mr-1.5" /> Pitch
+                <Presentation size={16} className="mr-1.5" /> Showcase
               </Button>
             </Link>
             <Button onClick={scrollToForm} className="h-11 md:h-12 text-sm md:text-base px-5 md:px-6 bg-orange-500 hover:bg-orange-600 text-white font-semibold tap-scale">
@@ -281,7 +280,7 @@ export default function App() {
               <span className="text-gradient-orange">Start selling vibes.</span>
             </h1>
             <p className="mt-5 md:mt-7 text-base sm:text-xl md:text-2xl text-zinc-400 max-w-2xl md:max-w-3xl mx-auto text-balance leading-relaxed">
-              Your menu shouldn’t kill the appetite. FoodLens turns every dish into a 5-second cinema clip
+              Your menu shouldn’t kill the appetite. FoodLens turns every dish into a mouth-watering 5-second cinema clip
               that <span className="text-orange-400 font-medium">sells itself</span>.
             </p>
             <div className="mt-8 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
@@ -290,20 +289,20 @@ export default function App() {
               </Button>
               <Link href="/presentation" className="w-full sm:w-auto">
                 <Button variant="outline" className="tablet-btn-lg border-zinc-700 hover:bg-white/5 hover:border-orange-500/50 tap-scale w-full sm:w-auto">
-                  <Presentation size={20} className="mr-2" /> Open Pitch Deck
+                  <Presentation size={20} className="mr-2" /> Open Showcase
                 </Button>
               </Link>
             </div>
             <div className="mt-6 md:mt-8 flex flex-wrap items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-zinc-500">
               <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> No credit card</span>
-              <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> We shoot the videos</span>
+              <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> We create your videos</span>
               <span className="flex items-center gap-1.5"><Check size={14} className="text-orange-500" /> Live in 48h</span>
             </div>
           </div>
 
           {/* Side-by-side comparison */}
           <div className="mt-16 sm:mt-24 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <div className="order-2 lg:order-1">
+            <div className="order-1 lg:order-1">
               <div className="flex items-center gap-2 text-zinc-500 text-sm mb-4">
                 <FileText size={16} /> THE OLD WAY
               </div>
@@ -316,7 +315,7 @@ export default function App() {
                 <BoringPdfMenu />
               </PhoneFrame>
             </div>
-            <div className="order-1 lg:order-2">
+            <div className="order-2 lg:order-2">
               <div className="flex items-center gap-2 text-orange-400 text-sm mb-4">
                 <Clapperboard size={16} /> THE FOODLENS WAY
               </div>
@@ -357,10 +356,10 @@ export default function App() {
               <Zap size={12} className="mr-1.5" /> Lock In On The Spot
             </Badge>
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-balance">
-              Let’s shoot your <span className="text-gradient-orange">first 5 dishes</span>
+              Let’s get your <span className="text-gradient-orange">first 5 dishes</span>
             </h2>
             <p className="mt-3 text-zinc-400 max-w-xl mx-auto">
-              Takes 60 seconds. No card. We come to your kitchen and film. You go live in 48 hours.
+              Takes 60 seconds. No card. We create your videos from your photos. You go live in 48 hours.
             </p>
           </div>
 
@@ -371,7 +370,7 @@ export default function App() {
               </div>
               <h3 className="text-2xl sm:text-3xl font-bold mb-2">Welcome to the family, {form.ownerName.split(' ')[0]}.</h3>
               <p className="text-zinc-400 max-w-md mx-auto">
-                Patric will text you within 2 hours to schedule your concierge shoot. <strong className="text-orange-400">{form.restaurantName}</strong> is going cinematic.
+                Patric will text you within 2 hours to get your first dishes live. <strong className="text-orange-400">{form.restaurantName}</strong> is going cinematic.
               </p>
               <Button onClick={() => { setSubmitted(false); setForm({restaurantName:'',ownerName:'',instagram:'',phone:'',email:''}); setDishes([]) }} variant="outline" className="mt-6 border-zinc-700">
                 Sign Up Another Restaurant
@@ -436,10 +435,28 @@ export default function App() {
                   </div>
                 </div>
 
+                <div>
+                  <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base"><Mail size={14} /> Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({...form, email: e.target.value})}
+                    placeholder="you@restaurant.com"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    inputMode="email"
+                    enterKeyHint="next"
+                    className="tablet-input bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 focus-visible:border-orange-500"
+                  />
+                  <p className="mt-1.5 text-xs text-zinc-500">We'll send your confirmation here.</p>
+                </div>
+
                 {/* Dish upload */}
                 <div>
                   <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base">
-                    <Camera size={14} /> Upload your first 5 dishes (optional — we film for you)
+                    <Camera size={14} /> Upload your first 5 dishes (optional — we create them for you)
                   </Label>
                   <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={handleDishUpload} className="hidden" />
                   <button
@@ -511,7 +528,7 @@ export default function App() {
                 <div className="text-xs md:text-sm font-semibold uppercase tracking-widest text-orange-300">Real Result</div>
                 <div className="text-2xl md:text-4xl font-bold mt-1">+38% Average Cart Value</div>
                 <p className="text-sm md:text-base text-zinc-400 mt-1.5">
-                  €19 more per table. €17,000+ extra per month. Pays for the camera crew on day one.
+                  €19 more per table. €17,000+ extra per month. Pays for itself on day one.
                 </p>
               </div>
             </div>
@@ -520,7 +537,7 @@ export default function App() {
           <div className="grid md:grid-cols-3 gap-4">
             {[
               { icon: Gift, title: '30 Days Free', desc: 'No credit card. No catch. Cancel anytime, no questions.' },
-              { icon: ShieldCheck, title: 'Concierge Setup', desc: 'Our videographer comes to your kitchen. We shoot, edit, publish.' },
+              { icon: ShieldCheck, title: 'Concierge Setup', desc: 'Send your dish photos — we create, edit, and publish. Videographer on request.' },
               { icon: Globe, title: 'Auto Translations', desc: 'Tourists from any country read your menu in their own language.' },
             ].map(({ icon: Icon, title, desc }) => (
               <Card key={title} className="bg-zinc-900/60 border-zinc-800 p-6 hover:border-orange-500/40 transition group">
@@ -545,7 +562,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-zinc-500">
           <div className="flex items-center gap-2.5">
             <Logo size="xs" />
-            <span>© 2025 — Cinema for restaurants</span>
+            <span>© 2025 — For restaurants that refuse to go quietly.</span>
           </div>
           <Link href="/admin" className="flex items-center gap-1.5 hover:text-orange-400 transition">
             <Lock size={12} /> Admin
