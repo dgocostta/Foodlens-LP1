@@ -8,9 +8,9 @@ export const metadata = {
   title: 'FoodLens — Cinema Menus for Restaurants',
   description: 'Stop showing PDFs. Start selling vibes. Cinematic video menus that increase orders.',
   icons: {
-    icon: 'https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png',
-    shortcut: 'https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png',
-    apple: 'https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png',
+    icon: '/foodlens-icon.png',
+    shortcut: '/foodlens-icon.png',
+    apple: '/foodlens-icon.png',
   },
 }
 

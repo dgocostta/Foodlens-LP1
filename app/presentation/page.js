@@ -160,7 +160,7 @@ const SlideIntro = ({ active }) => (
     </div>
     <div className="relative text-center">
       <img
-        src="https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png"
+        src="/foodlens-logo.png"
         alt="FoodLens"
         className="h-16 md:h-24 w-auto mx-auto mb-6 md:mb-8 drop-shadow-[0_4px_24px_rgba(255,90,31,0.5)]"
       />

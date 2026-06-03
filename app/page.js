@@ -86,7 +86,7 @@ const CinemaMenu = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/90" />
           <div className="absolute top-8 left-0 right-0 px-4 flex items-center justify-between text-xs text-white/70">
-            <img src="https://customer-assets.emergentagent.com/wingman/6e978d7c-1e64-42c4-b4ae-a71d4297a51c/attachments/b2e12e6cc719455bbc9b633b05df069b_image.png" alt="FoodLens" className="h-4 w-auto opacity-80" />
+            <img src="/foodlens-icon.png" alt="FoodLens" className="h-5 w-auto opacity-90" />
             <button onClick={() => setMuted((m) => !m)} className="p-2 rounded-full bg-black/40 backdrop-blur">
               {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
             </button>
