@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb, getBucket } from '@/lib/firebase-admin'
-import { sendLeadNotification, sendWelcomeEmail } from '@/lib/email'
+import {
+  sendLeadNotification,
+  sendWelcomeEmail,
+  sendAffiliateApplicationReceived,
+  sendAffiliateApplicationNotification,
+  sendAffiliateApproved,
+} from '@/lib/email'
 
 // firebase-admin needs the Node.js runtime (not edge)
 export const runtime = 'nodejs'
@@ -19,6 +25,23 @@ function cors(res) {
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+
+// Affiliate code: FL-<FIRSTNAME>-<3 unambiguous alphanum>, e.g. FL-MARIA-7G2.
+// Uniqueness is enforced by the caller (checks Firestore + retries).
+function genAffiliateCode(name) {
+  const first = String(name || '').trim().split(/\s+/)[0] || 'PRO'
+  const base =
+    first
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 10) || 'PRO'
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no ambiguous 0/O/1/I
+  let suffix = ''
+  for (let i = 0; i < 3; i += 1) suffix += chars[Math.floor(Math.random() * chars.length)]
+  return `FL-${base}-${suffix}`
 }
 
 function notConfigured() {
@@ -212,6 +235,28 @@ async function route(request, method) {
           )
         }
 
+        // Referral attribution. If a code is supplied, it must resolve to an
+        // approved affiliate — the affiliate name is taken from the record
+        // (authoritative), never trusted from the client.
+        let affiliateCode = ''
+        let affiliateName = ''
+        let source = 'field-app'
+        const rawCode = String(body?.affiliateCode || '').trim().toUpperCase()
+        if (rawCode) {
+          const aSnap = await db
+            .collection('affiliates')
+            .where('code', '==', rawCode)
+            .limit(1)
+            .get()
+          const aDoc = aSnap.docs[0]
+          if (!aDoc || aDoc.data().status !== 'approved') {
+            return cors(NextResponse.json({ error: 'invalid or inactive affiliate code' }, { status: 400 }))
+          }
+          affiliateCode = rawCode
+          affiliateName = String(aDoc.data().name || '').slice(0, 200)
+          source = 'promoter'
+        }
+
         const cleanEmail = String(email || '').trim().toLowerCase()
         const lead = {
           restaurantName: String(restaurantName).slice(0, 200),
@@ -227,8 +272,10 @@ async function route(request, method) {
             : [],
           photos: [],
           video: null,
+          affiliateCode,
+          affiliateName,
           status: 'new',
-          source: 'field-app',
+          source,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
@@ -344,6 +391,126 @@ async function route(request, method) {
             note: 'Queued. Video generation pipeline not implemented yet.',
           }),
         )
+      }
+    }
+
+    // Affiliates / Promoter program (Phase 1 — code-based, no logins)
+    if (resource === 'affiliates') {
+      if (!db) return notConfigured()
+
+      // Validate a code (public): GET /api/affiliates/validate?code=
+      if (id === 'validate' && method === 'GET') {
+        const code = String(url.searchParams.get('code') || '').trim().toUpperCase()
+        if (!code) return cors(NextResponse.json({ valid: false, error: 'code required' }, { status: 400 }))
+        const snap = await db.collection('affiliates').where('code', '==', code).limit(1).get()
+        const doc = snap.docs[0]
+        if (!doc || doc.data().status !== 'approved') {
+          return cors(NextResponse.json({ valid: false }))
+        }
+        return cors(NextResponse.json({ valid: true, name: doc.data().name || '', code }))
+      }
+
+      // Apply (public): POST /api/affiliates → saved as 'pending'
+      if (!id && method === 'POST') {
+        const body = await request.json()
+        const name = String(body?.name || '').trim().slice(0, 200)
+        const email = String(body?.email || '').trim().toLowerCase().slice(0, 320)
+        if (!name || !email || !isValidEmail(email)) {
+          return cors(NextResponse.json({ error: 'name and a valid email are required' }, { status: 400 }))
+        }
+
+        // Recruiter attribution: if they came via another affiliate's ?ref code,
+        // record who referred them (used for the Recruiter reward). Name is
+        // pulled from the approved affiliate record, never trusted from client.
+        let referredByCode = ''
+        let referredByName = ''
+        const rawRef = String(body?.referredBy || '').trim().toUpperCase()
+        if (rawRef) {
+          const rSnap = await db.collection('affiliates').where('code', '==', rawRef).limit(1).get()
+          const rDoc = rSnap.docs[0]
+          if (rDoc && rDoc.data().status === 'approved') {
+            referredByCode = rawRef
+            referredByName = String(rDoc.data().name || '').slice(0, 200)
+          }
+        }
+
+        const affiliate = {
+          name,
+          email,
+          phone: String(body?.phone || '').slice(0, 50),
+          social: String(body?.social || '').slice(0, 200),
+          audience: String(body?.audience || body?.note || '').slice(0, 2000),
+          referredByCode,
+          referredByName,
+          status: 'pending',
+          code: null,
+          adminNotes: '',
+          createdAt: new Date().toISOString(),
+          approvedAt: null,
+        }
+        const ref = await db.collection('affiliates').add(affiliate)
+        // Fire-and-forget emails (don't block the response).
+        sendAffiliateApplicationReceived({ to: email, name }).catch((e) => console.error('[email] affiliate received failed', e))
+        sendAffiliateApplicationNotification({
+          name, email, phone: affiliate.phone, social: affiliate.social, audience: affiliate.audience,
+        }).catch((e) => console.error('[email] affiliate notify failed', e))
+        return cors(NextResponse.json({ ok: true, id: ref.id }))
+      }
+
+      // List (admin): GET /api/affiliates — includes referred-lead counts
+      if (!id && method === 'GET') {
+        const adminKey = (request.headers.get('x-admin-key') || url.searchParams.get('key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const snap = await db.collection('affiliates').orderBy('createdAt', 'desc').limit(500).get()
+        const affiliates = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const counts = {}
+        const leadsSnap = await db.collection('leads').where('source', '==', 'promoter').limit(2000).get()
+        leadsSnap.docs.forEach((d) => {
+          const c = d.data().affiliateCode
+          if (c) counts[c] = (counts[c] || 0) + 1
+        })
+        const withCounts = affiliates.map((a) => ({ ...a, leadCount: a.code ? counts[a.code] || 0 : 0 }))
+        return cors(NextResponse.json({ affiliates: withCounts }))
+      }
+
+      // Update (admin): PUT /api/affiliates/<id> — approve / reject / pause / notes.
+      // On first approval: generate a unique code + send the approval email.
+      if (id && method === 'PUT') {
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const ref = db.collection('affiliates').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'affiliate not found' }, { status: 404 }))
+        const current = snap.data()
+        const body = await request.json()
+        const update = { updatedAt: new Date().toISOString() }
+
+        if (typeof body?.adminNotes === 'string') update.adminNotes = body.adminNotes.slice(0, 2000)
+
+        const STATUSES = ['pending', 'approved', 'paused', 'rejected']
+        let emailAfter = null
+        if (body?.status && STATUSES.includes(body.status)) {
+          update.status = body.status
+          if (body.status === 'approved' && !current.code) {
+            let code = ''
+            for (let attempt = 0; attempt < 6; attempt += 1) {
+              const candidate = genAffiliateCode(current.name)
+              const dup = await db.collection('affiliates').where('code', '==', candidate).limit(1).get()
+              if (dup.empty) { code = candidate; break }
+            }
+            if (!code) return cors(NextResponse.json({ error: 'could not generate a unique code; try again' }, { status: 500 }))
+            update.code = code
+            update.approvedAt = new Date().toISOString()
+            emailAfter = { to: current.email, name: current.name, code }
+          }
+        }
+
+        await ref.set(update, { merge: true })
+        if (emailAfter) {
+          sendAffiliateApproved(emailAfter).catch((e) => console.error('[email] affiliate approved failed', e))
+        }
+        const after = (await ref.get()).data()
+        return cors(NextResponse.json({ ok: true, affiliate: { id, ...after } }))
       }
     }
 

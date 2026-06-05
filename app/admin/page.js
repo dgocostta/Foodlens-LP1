@@ -10,6 +10,7 @@ import {
   Lock, RefreshCw, Users, Calendar, Instagram, Phone, Mail, ArrowLeft, Film,
   Save, RotateCcw, ExternalLink, Play, X, Copy, MessageCircle, Wand2, Image as ImageIcon,
   Video, ListChecks, Clapperboard, Upload,
+  UserPlus, Check, Ban, Pause, Clock, Filter, Tag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DEFAULT_DISHES, DEFAULT_DECK } from '@/lib/foodlens-data'
@@ -61,6 +62,7 @@ export default function AdminPage() {
   const [todayOnly, setTodayOnly] = useState(false)
   const [loadingLeads, setLoadingLeads] = useState(false)
   const [selected, setSelected] = useState(null)
+  const [refFilter, setRefFilter] = useState('all')
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('fl_admin_key') : null
@@ -132,6 +134,13 @@ export default function AdminPage() {
     }
   }
 
+  const referrers = Array.from(new Set(leads.map((l) => l.affiliateName).filter(Boolean))).sort()
+  const shownLeads = leads.filter((l) => {
+    if (refFilter === 'all') return true
+    if (refFilter === '__direct__') return !l.affiliateCode
+    return l.affiliateName === refFilter
+  })
+
   if (!authed) {
     return (
       <main className="min-h-screen bg-zinc-950 flex items-center justify-center px-4">
@@ -170,12 +179,16 @@ export default function AdminPage() {
               className={`text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${tab === 'media' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
               <Clapperboard size={14} /> Media
             </button>
+            <button onClick={() => setTab('affiliates')}
+              className={`text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${tab === 'affiliates' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
+              <UserPlus size={14} /> Affiliates
+            </button>
           </div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {tab === 'leads' ? (
+        {tab === 'leads' && (
           <>
             <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
               <div>
@@ -195,12 +208,25 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <StatCard icon={Users} label="Total Leads" value={leads.length} />
               <StatCard icon={ImageIcon} label="With Photos" value={leads.filter((l) => (l.photos || []).length).length} />
-              <StatCard icon={Mail} label="With Email" value={leads.filter((l) => l.email).length} />
+              <StatCard icon={UserPlus} label="Via Promoters" value={leads.filter((l) => l.affiliateCode).length} />
               <StatCard icon={Calendar} label={todayOnly ? 'Today' : 'All Time'} value={leads.length} />
             </div>
+
+            {referrers.length > 0 && (
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <span className="text-xs text-zinc-500 flex items-center gap-1.5"><Filter size={12} /> Referred by</span>
+                <select value={refFilter} onChange={(e) => setRefFilter(e.target.value)}
+                  className="bg-zinc-900 border border-zinc-800 rounded-lg text-sm px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                  <option value="all">All sources</option>
+                  <option value="__direct__">Direct (no promoter)</option>
+                  {referrers.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                {refFilter !== 'all' && <span className="text-xs text-zinc-500">{shownLeads.length} shown</span>}
+              </div>
+            )}
 
             <Card className="bg-zinc-900/60 border-zinc-800 overflow-hidden">
               <div className="overflow-x-auto">
@@ -209,22 +235,26 @@ export default function AdminPage() {
                     <tr>
                       <th className="text-left px-4 py-3">Restaurant</th>
                       <th className="text-left px-4 py-3">Owner</th>
-                      <th className="text-left px-4 py-3">Email</th>
+                      <th className="text-left px-4 py-3">Referred by</th>
                       <th className="text-left px-4 py-3">Photos</th>
                       <th className="text-left px-4 py-3">Status</th>
                       <th className="text-left px-4 py-3">Time</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {leads.length === 0 && (
+                    {shownLeads.length === 0 && (
                       <tr><td colSpan={6} className="px-4 py-12 text-center text-zinc-500">No leads yet. Go close some! 🔥</td></tr>
                     )}
-                    {leads.map((l) => (
+                    {shownLeads.map((l) => (
                       <tr key={l.id} onClick={() => setSelected(l)}
                         className="border-t border-zinc-800 hover:bg-white/[0.03] cursor-pointer">
                         <td className="px-4 py-3 font-medium">{l.restaurantName}</td>
                         <td className="px-4 py-3 text-zinc-300">{l.ownerName}</td>
-                        <td className="px-4 py-3 text-zinc-400">{l.email || <span className="text-zinc-600">—</span>}</td>
+                        <td className="px-4 py-3">
+                          {l.affiliateName ? (
+                            <span className="inline-flex items-center gap-1.5 text-orange-300"><UserPlus size={12} /> {l.affiliateName}</span>
+                          ) : <span className="text-zinc-600">Direct</span>}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className="border-zinc-700 text-zinc-300">{(l.photos || []).length}</Badge>
                         </td>
@@ -237,9 +267,9 @@ export default function AdminPage() {
               </div>
             </Card>
           </>
-        ) : (
-          <MediaManagement adminKey={key} />
         )}
+        {tab === 'media' && <MediaManagement adminKey={key} />}
+        {tab === 'affiliates' && <AffiliatesManagement adminKey={key} />}
       </div>
 
       {selected && (
@@ -519,6 +549,173 @@ const MediaManagement = ({ adminKey }) => {
           </Card>
         ))}
       </div>
+    </div>
+  )
+}
+
+const AFF_STATUS = {
+  pending: 'border-amber-500/50 text-amber-300',
+  approved: 'border-green-500/50 text-green-300',
+  paused: 'border-zinc-500/50 text-zinc-300',
+  rejected: 'border-red-500/50 text-red-300',
+}
+const AFF_LABEL = { pending: 'Pending', approved: 'Approved', paused: 'Paused', rejected: 'Rejected' }
+
+const AffiliatesManagement = ({ adminKey }) => {
+  const [affiliates, setAffiliates] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [busyId, setBusyId] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [notes, setNotes] = useState({})
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/affiliates', { headers: { 'X-Admin-Key': adminKey } })
+      const data = await res.json()
+      const list = data.affiliates || []
+      setAffiliates(list)
+      setNotes(Object.fromEntries(list.map((a) => [a.id, a.adminNotes || ''])))
+    } catch (e) {
+      toast.error('Failed to load affiliates')
+    } finally {
+      setLoading(false)
+    }
+  }
+  useEffect(() => { load() }, [])
+
+  const patch = async (a, body) => {
+    setBusyId(a.id)
+    try {
+      const res = await fetch(`/api/affiliates/${a.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      setAffiliates((arr) => arr.map((x) => (x.id === a.id ? { ...x, ...data.affiliate } : x)))
+      return data.affiliate
+    } catch (e) {
+      toast.error(e.message)
+      return null
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const approve = async (a) => {
+    const updated = await patch(a, { status: 'approved' })
+    if (updated) toast.success(updated.code ? `Approved — code ${updated.code} emailed to ${a.email}` : 'Resumed')
+  }
+  const pause = async (a) => { const u = await patch(a, { status: 'paused' }); if (u) toast.success('Paused') }
+  const reject = async (a) => {
+    if (!window.confirm(`Reject ${a.name}? Their code (if any) stops working.`)) return
+    const u = await patch(a, { status: 'rejected' }); if (u) toast.success('Rejected')
+  }
+  const saveNotes = async (a) => {
+    if ((notes[a.id] || '') === (a.adminNotes || '')) return
+    const u = await patch(a, { adminNotes: notes[a.id] || '' }); if (u) toast.success('Notes saved')
+  }
+
+  const copy = (txt) => navigator.clipboard.writeText(txt).then(
+    () => toast.success('Copied'), () => toast.error('Could not copy'))
+
+  const counts = {
+    pending: affiliates.filter((a) => a.status === 'pending').length,
+    approved: affiliates.filter((a) => a.status === 'approved').length,
+    paused: affiliates.filter((a) => a.status === 'paused').length,
+    rejected: affiliates.filter((a) => a.status === 'rejected').length,
+  }
+  const shown = affiliates.filter((a) => statusFilter === 'all' || a.status === statusFilter)
+
+  return (
+    <div className="rounded-2xl" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '22px 22px' }}>
+      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <UserPlus size={18} className="text-orange-400" />
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Affiliates</h1>
+          </div>
+          <p className="text-zinc-500 text-sm md:text-base">Review applicants, approve to generate their code + send the kit.</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={load} className="border-zinc-800">
+          <RefreshCw size={13} className={`mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <StatCard icon={Clock} label="Pending" value={counts.pending} />
+        <StatCard icon={Check} label="Approved" value={counts.approved} />
+        <StatCard icon={Pause} label="Paused" value={counts.paused} />
+        <StatCard icon={Ban} label="Rejected" value={counts.rejected} />
+      </div>
+
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {['all', 'pending', 'approved', 'paused', 'rejected'].map((s) => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`text-xs px-3 py-1.5 rounded-full border ${statusFilter === s ? 'bg-orange-500 border-orange-500 text-white' : 'border-zinc-700 text-zinc-400 hover:border-orange-500/60'}`}>
+            {s === 'all' ? 'All' : AFF_LABEL[s]}
+          </button>
+        ))}
+      </div>
+
+      {shown.length === 0 ? (
+        <Card className="bg-zinc-900/60 border-zinc-800 p-12 text-center text-zinc-500">
+          {loading ? 'Loading…' : 'No applications here yet.'}
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {shown.map((a) => (
+            <Card key={a.id} className="bg-zinc-900/60 border-zinc-800 p-4">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-semibold">{a.name}</span>
+                    <Badge variant="outline" className={AFF_STATUS[a.status] || AFF_STATUS.pending}>{AFF_LABEL[a.status] || a.status}</Badge>
+                    {a.code && (
+                      <button onClick={() => copy(a.code)}
+                        className="inline-flex items-center gap-1.5 text-xs font-mono bg-zinc-950 border border-dashed border-orange-500/50 text-orange-300 rounded-md px-2 py-0.5 hover:bg-orange-500/10">
+                        <Tag size={11} /> {a.code} <Copy size={11} />
+                      </button>
+                    )}
+                    {a.code && <span className="text-xs text-zinc-500">{a.leadCount || 0} lead{(a.leadCount || 0) === 1 ? '' : 's'}</span>}
+                    {a.referredByName && <span className="text-xs text-zinc-500 inline-flex items-center gap-1"><UserPlus size={11} /> via {a.referredByName}</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-400">
+                    <a href={`mailto:${a.email}`} className="hover:text-orange-400 inline-flex items-center gap-1.5"><Mail size={12} /> {a.email}</a>
+                    {a.phone && <span className="inline-flex items-center gap-1.5"><Phone size={12} /> {a.phone}</span>}
+                    {a.social && <span className="inline-flex items-center gap-1.5"><Instagram size={12} /> {a.social}</span>}
+                  </div>
+                  {a.audience && <p className="text-sm text-zinc-500 mt-2">{a.audience}</p>}
+                  <div className="mt-3 flex items-center gap-2">
+                    <Input value={notes[a.id] ?? ''} onChange={(e) => setNotes((n) => ({ ...n, [a.id]: e.target.value }))}
+                      onBlur={() => saveNotes(a)} placeholder="Admin notes (e.g. schedule a 101)…"
+                      className="bg-zinc-950 border-zinc-800 h-8 text-xs" />
+                  </div>
+                </div>
+                <div className="flex lg:flex-col gap-2 lg:w-36 flex-shrink-0">
+                  {a.status !== 'approved' && (
+                    <Button size="sm" disabled={busyId === a.id} onClick={() => approve(a)} className="bg-orange-500 hover:bg-orange-600 text-white w-full">
+                      <Check size={13} className="mr-1.5" /> {a.status === 'paused' || a.status === 'rejected' ? 'Resume' : 'Approve'}
+                    </Button>
+                  )}
+                  {a.status === 'approved' && (
+                    <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => pause(a)} className="border-zinc-700 w-full">
+                      <Pause size={13} className="mr-1.5" /> Pause
+                    </Button>
+                  )}
+                  {a.status !== 'rejected' && (
+                    <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => reject(a)} className="border-red-500/40 text-red-300 hover:bg-red-500/10 w-full">
+                      <Ban size={13} className="mr-1.5" /> Reject
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

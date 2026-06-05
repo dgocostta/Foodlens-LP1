@@ -201,6 +201,20 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const fileRef = useRef(null)
+  const [ref, setRef] = useState({ code: '', name: '' })
+
+  // Referral attribution: capture ?ref=CODE, validate it, and (if good) tag the
+  // lead with this affiliate's code — same crediting path as /field.
+  useEffect(() => {
+    let code = ''
+    try { code = new URLSearchParams(window.location.search).get('ref') || '' } catch (e) {}
+    code = String(code).trim().toUpperCase()
+    if (!code) return
+    fetch(`/api/affiliates/validate?code=${encodeURIComponent(code)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d?.valid) setRef({ code: d.code || code, name: d.name || '' }) })
+      .catch(() => {})
+  }, [])
 
   const handleDishUpload = (e) => {
     const files = Array.from(e.target.files || [])
@@ -228,6 +242,7 @@ export default function App() {
         body: JSON.stringify({
           ...form,
           dishes: dishes.map((d) => ({ name: d.name, size: d.size })),
+          affiliateCode: ref.code,
         }),
       })
       const data = await res.json()
@@ -366,6 +381,11 @@ export default function App() {
             <p className="mt-3 text-zinc-400 max-w-xl mx-auto">
               Takes 60 seconds. No card. We create your videos from your photos. You go live in 48 hours.
             </p>
+            {ref.name && (
+              <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-orange-300 bg-orange-500/10 border border-orange-500/30 rounded-full px-3 py-1.5">
+                <Check size={12} /> Referred by {ref.name}
+              </div>
+            )}
           </div>
 
           {submitted ? (

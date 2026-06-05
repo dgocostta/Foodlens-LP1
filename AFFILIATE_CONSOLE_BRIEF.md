@@ -1,3 +1,18 @@
+# ⚠️ SCOPE & READ ORDER — READ THIS FIRST
+
+- **BUILD NOW → "PHASE 1 — Affiliate / Promoter program" (at the very bottom of this file).**
+  No logins; code-based attribution. It lives in THIS repo (foodlens-lp1 → demo.foodlensgroup.com).
+- **DO NOT build now:** the full per-affiliate **Firebase Auth login** system described in the
+  "NEW REQUIREMENT" section below — that's **Phase 2 / later**.
+- **Separate project (NOT this repo):** the full "Business Mission Control" dashboard
+  (C:\DEV\clients\Admin-Foodlens\Foodlens_Dashboard_Mockup.html). The authed console may eventually
+  live there, not in this site.
+
+The middle of this doc is background/architecture for the bigger vision. The actionable build is
+PHASE 1 at the end.
+
+---
+
 # FoodLens — Handoff brief (for a fresh chat: Affiliate / Ambassador console)
 
 Paste or attach this file at the start of the new chat so it resumes with full context.
@@ -61,3 +76,83 @@ Goal: real per-user logins so affiliates can work in the field; the seed of the 
 - `flyer.foodlensgroup.com` subdomain for the old flyer page (separate Vercel project + domain).
 - Real Kling/Hedra video generation behind the admin "Generate video" button (needs an API key).
 - Confirm Resend sending domain (`send.foodlensgroup.com`) is verified so lead emails deliver.
+
+---
+
+# PHASE 1 — Affiliate / Promoter program (BUILD THIS FIRST)
+No per-user login. The **affiliate CODE** is the spam-guard, the attribution ID, AND the bridge to
+real accounts later. **Codes are generated on APPROVAL, never at signup.**
+
+## Foundation (do first — underpins all three builds)
+- Firestore `affiliates` collection: { name, email, phone, social, audience/note,
+  status: 'pending' | 'approved' | 'paused' | 'rejected', code, createdAt, approvedAt, adminNotes }
+- Extend `leads` docs with: `affiliateCode`, `affiliateName` (referred-by).
+- API (extend the catch-all `app/api/[[...path]]/route.js`):
+  - `POST /api/affiliates` (public) — promoter application → saved as status 'pending'.
+  - `GET /api/affiliates` (admin) — list applications.
+  - `PUT /api/affiliates/:id` (admin) — approve / reject / pause; on **approve** → generate a unique
+    code (e.g. FL-MARIA-7G2) + send approval email.
+  - `GET /api/affiliates/validate?code=` (public) — field intake checks a code is valid + approved.
+- Emails (Resend, reuse `lib/email.js`): "application received" to applicant; internal notify to
+  LEAD_NOTIFICATION_TO on new application; "approved — here's your code + Kit link" on approval.
+
+## Build 1 — Field Lead Intake page (`/field`) with affiliate-code gate
+- Promoter enters their code → validated via /api/affiliates/validate → unlocks the restaurant
+  lead form (reuse the signup form + on-the-spot photo/video upload pipeline).
+- Submitted lead is tagged `affiliateCode` + `affiliateName`, `source: 'promoter'`.
+
+## Build 2 — Promoter landing + signup (`/join`)
+- Landing page selling "become a FoodLens affiliate" + an application form → saves to `affiliates`
+  as 'pending'. Confirmation screen + "application received" email. (No code issued here.)
+
+## Build 3 — Admin "Affiliates" tab (beside Leads / Media)
+- List applicants with status labels (pending / approved / paused / rejected).
+- **Approve** → generates the code + sends approval email + unlocks Kit. Reject / pause.
+- See each affiliate's referred leads + counts; `adminNotes` field for scheduling 101s.
+- Leads tab also gains a "Referred by" column + filter.
+
+## Plus — Affiliate Kit page (`/field/kit`)
+- Static page: downloadable assets, email copy, cold-DM scripts, each with a copy button.
+- Optionally code-gated; linked from the approval email. Content managed by Diego.
+
+## Recommended BUILD ORDER (respects dependencies)
+Foundation → Build 3 (admin approve, so codes can exist) → Build 2 (promoter signup) →
+Build 1 (code-gated field intake) → Kit.
+
+## Decisions locked
+- Phase 1 = NO passwords; the code is the key + attribution ID.
+- Code generated on approval only.
+- Phase 2 (later) = real Firebase Auth accounts mapping each code → a login, feeding the future
+  "Business Mission Control" dashboard (separate project: C:\DEV\clients\Admin-Foodlens\Foodlens_Dashboard_Mockup.html).
+
+---
+
+# BRANDING, LAYOUT & LANGUAGES (applies to all Phase 1 pages)
+
+## Brand tokens — match demo.foodlensgroup.com
+- Dark theme: bg `zinc-950`, text `zinc-50`. Accent: **orange** (`orange-500` / #ff5a1f);
+  use `text-gradient-orange` for highlight headings; `glass` (backdrop-blur) nav bars.
+- Stack: Tailwind 3 + shadcn/ui (Radix) + lucide-react icons. Inter font (configured in layout.js).
+- Mobile-first; keep the `overflow-x: hidden` scroll lock (no sideways drag).
+
+## Logo placement — reuse the `<Logo>` component (components/logo.js)
+- **Full lockup** `/foodlens-logo.png` → top-left nav, footer, centered on login/auth cards (size lg).
+- **Icon-only** `/foodlens-icon.png` → favicon (layout.js) + any tiny/square watermark.
+- Height-scaled, width auto — never stretch.
+
+## Differentiate the surfaces (Diego's request)
+- **Promoter recruitment landing (`/join`)** = marketing style — same splashy hero/gradient energy
+  as the public site, built to SELL becoming an affiliate.
+- **Operational surfaces** (`/field`, `/field/kit`, Admin "Affiliates" tab) = a calmer **dashboard/app
+  aesthetic**: a subtle **grid / dotted background**, card-based panels, denser tables — same brand
+  colors + logo, but clearly "the tool," not the brochure. The grid texture is the visual cue that
+  sets the back-of-house apart from the front-end marketing pages.
+
+## Languages / i18n — LAST in the queue (only after the 4 builds work)
+- Must **match foodlensgroup.com's language toggle** — inspect that site's toggle and replicate its
+  pattern, placement, and behavior so it feels native to the brand.
+- Locales: **English (default), Spanish (es), Portuguese-Portugal (pt-PT), Portuguese-Brazil (pt-BR),
+  Ukrainian (uk), Hindi (hi) / main Indian language(s)**.
+- Implementation: dictionary/JSON-per-locale (or next-intl) consistent with the main site; persist the
+  choice in localStorage like the rest of the app.
+- Apply to the public Phase-1 pages (`/join`, `/field`, `/field/kit`). Admin can stay English for now.
