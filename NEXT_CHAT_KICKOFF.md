@@ -3,7 +3,7 @@
 You're picking up the FoodLens project in a fresh session. Follow these steps.
 
 1) READ FIRST — open and read `AFFILIATE_CONSOLE_BRIEF.md` in:
-   C:\Users\User\Documents\Claude\Projects\How to use Claude\FoodLens\foodlens-lp1
+   C:\Users\User\Documents\Claude\Projects\Foodlens-backend\demo-foodlensgroup\foodlens-lp1
    It contains the full architecture, what's already built & live, env vars, known gotchas, the
    Phase-1 plan, and the branding/language rules. Obey the SCOPE banner at the top.
 

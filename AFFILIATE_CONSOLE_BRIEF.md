@@ -20,7 +20,7 @@ Paste or attach this file at the start of the new chat so it resumes with full c
 ## What this project is
 - Live site: **demo.foodlensgroup.com** (QR destination from a printed flyer).
 - GitHub: **dgocostta/Foodlens-LP1** (branch `main`). Deploy host: **Vercel** (the project that owns the domain; auto-deploys on push to main).
-- Local working folder (Cowork): `...\Documents\Claude\Projects\How to use Claude\FoodLens\foodlens-lp1`.
+- Local working folder (Cowork): `C:\Users\User\Documents\Claude\Projects\Foodlens-backend\demo-foodlensgroup\foodlens-lp1`.
 
 ## Stack
 - Next.js **14.2.35**, App Router, **JavaScript** (.js/.jsx), Tailwind 3, shadcn/ui (Radix), lucide-react.

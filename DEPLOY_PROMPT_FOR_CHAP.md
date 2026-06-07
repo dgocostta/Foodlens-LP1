@@ -73,7 +73,7 @@ rather than guessing.
    the bucket id). Same project the existing Firestore lives in.
 4. **The secret env values.** These already exist — read them, don't invent them.
    Source of truth (in priority order):
-   a) the file `C:\Users\User\Documents\Claude\Projects\How to use Claude\FoodLens\demo-site\.env.local`
+   a) the file `C:\Users\User\Documents\Claude\Projects\Foodlens-backend\demo-foodlensgroup\demo-site\.env.local`
       (contains FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY,
        RESEND_API_KEY, RESEND_FROM, RESEND_REPLY_TO, LEAD_NOTIFICATION_TO), or
    b) the existing Vercel project's Environment Variables (old repo), or
@@ -92,7 +92,7 @@ repo, never print full secret values in logs or your final report (mask them, e.
 ## Context
 - New landing page repo (GitHub): https://github.com/dgocostta/Foodlens-LP1  (branch: main)
 - The updated, ready-to-ship code is in this local folder:
-  `C:\Users\User\Documents\Claude\Projects\How to use Claude\FoodLens\foodlens-lp1`
+  `C:\Users\User\Documents\Claude\Projects\Foodlens-backend\demo-foodlensgroup\foodlens-lp1`
   (If that differs on this machine, ask me for the path to the `foodlens-lp1` folder.)
 - The Vercel project that currently serves **demo.foodlensgroup.com** is connected to
   the OLD repo `dgocostta/FoodLens-Demo-pages`. We are keeping that same Vercel project
