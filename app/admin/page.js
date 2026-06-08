@@ -721,6 +721,19 @@ const AffiliatesManagement = ({ adminKey }) => {
                 </div>
                 <ChevronRight size={18} className="text-zinc-600 flex-shrink-0" />
               </div>
+              <div className="flex flex-wrap gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                {a.status !== 'approved' && (
+                  <Button size="sm" disabled={busyId === a.id} onClick={() => approve(a)} className="bg-orange-500 hover:bg-orange-600 text-white">
+                    <Check size={13} className="mr-1.5" /> {a.status === 'paused' || a.status === 'rejected' ? 'Resume' : 'Approve'}
+                  </Button>
+                )}
+                {a.code && (
+                  <>
+                    <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => sendLink(a)} className="border-zinc-700"><Send size={13} className="mr-1.5" /> Send link</Button>
+                    <Button size="sm" variant="outline" onClick={() => copy(a.code)} className="border-zinc-700"><Copy size={13} className="mr-1.5" /> Copy code</Button>
+                  </>
+                )}
+              </div>
             </Card>
           ))}
         </div>
@@ -742,6 +755,24 @@ const AffiliatesManagement = ({ adminKey }) => {
             </div>
 
             <div className="p-5 space-y-6">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Engagement</div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-2.5">
+                    <div className="text-lg font-bold">{detail.checklistDone ?? 0}/{detail.checklistTotal ?? 0}</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Quick-start</div>
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-2.5">
+                    <div className="text-lg font-bold">{detail.workbookCount ?? 0}</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Targets</div>
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-2.5">
+                    <div className="text-lg font-bold">{detail.signedCount ?? 0}</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Won</div>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">Rank <span className="text-orange-300">{detail.rank || 'Promoter'}</span> · {detail.workbookSigned ?? 0} marked signed in workbook</p>
+              </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Quick actions</div>
                 <div className="flex flex-wrap gap-2">

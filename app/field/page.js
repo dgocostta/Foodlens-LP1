@@ -25,7 +25,7 @@ export default function FieldPage() {
   const [phase, setPhase] = useState('gate') // 'gate' | 'ready'
   const [codeInput, setCodeInput] = useState('')
   const [checking, setChecking] = useState(false)
-  const [affiliate, setAffiliate] = useState({ code: '', name: '', trainingAck: false })
+  const [affiliate, setAffiliate] = useState({ code: '', name: '', unlocked: false })
 
   const [form, setForm] = useState(EMPTY)
   const [dishes, setDishes] = useState([])
@@ -52,7 +52,7 @@ export default function FieldPage() {
       const res = await fetch(`/api/affiliates/validate?code=${encodeURIComponent(code)}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.valid) throw new Error('That code isn’t valid or active')
-      setAffiliate({ code: data.code || code, name: data.name || '', trainingAck: !!data.trainingAck })
+      setAffiliate({ code: data.code || code, name: data.name || '', unlocked: !!data.unlocked })
       setPhase('ready')
       try { localStorage.setItem('fl_affiliate_code', data.code || code) } catch (e) {}
     } catch (err) {
@@ -65,24 +65,11 @@ export default function FieldPage() {
 
   const signOut = () => {
     try { localStorage.removeItem('fl_affiliate_code') } catch (e) {}
-    setAffiliate({ code: '', name: '', trainingAck: false })
+    setAffiliate({ code: '', name: '', unlocked: false })
     setPhase('gate')
     setForm(EMPTY)
     setDishes([])
     setSessionLeads([])
-  }
-
-  const ackTraining = async () => {
-    try {
-      const res = await fetch('/api/affiliates/ack-training', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: affiliate.code }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Could not save')
-      setAffiliate((a) => ({ ...a, trainingAck: true }))
-      toast.success('Quick-start complete — you can add leads now 🎉')
-    } catch (e) { toast.error(e.message) }
   }
 
   const handleDishUpload = (e) => {
@@ -194,25 +181,22 @@ export default function FieldPage() {
           </span>
         </div>
 
-        {/* Training gate — must finish quick-start before promoting */}
-        {!affiliate.trainingAck && (
+        {/* Gate — must finish the required quick-start steps before promoting */}
+        {!affiliate.unlocked && (
           <Card className="bg-zinc-900/70 border-orange-500/40 p-5 sm:p-7 backdrop-blur">
             <div className="flex items-center gap-2 mb-2">
               <Lock size={18} className="text-orange-400" />
               <h2 className="text-lg font-bold">Finish your quick-start to start adding leads</h2>
             </div>
-            <p className="text-sm text-zinc-400 mb-4">Complete the 7-day quick-start in your dashboard, then you can log restaurants here. It takes a minute.</p>
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/field/kit?code=${encodeURIComponent(affiliate.code)}`}>
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white"><BookOpen size={15} className="mr-1.5" /> Open dashboard</Button>
-              </Link>
-              <Button variant="outline" onClick={ackTraining} className="border-zinc-700"><CheckCircle2 size={15} className="mr-1.5" /> I've read it — unlock</Button>
-            </div>
+            <p className="text-sm text-zinc-400 mb-4">Complete the required steps in your dashboard — watch the welcome video, read the rules, and list your target restaurants — then you can log leads here.</p>
+            <Link href={`/field/kit?code=${encodeURIComponent(affiliate.code)}`}>
+              <Button className="bg-orange-500 hover:bg-orange-600 text-white"><BookOpen size={15} className="mr-1.5" /> Open dashboard</Button>
+            </Link>
           </Card>
         )}
 
         {/* Intake form */}
-        {affiliate.trainingAck && (
+        {affiliate.unlocked && (
         <Card className="bg-zinc-900/70 border-zinc-800 p-5 sm:p-7 backdrop-blur">
           <div className="flex items-center gap-2 mb-5">
             <Plus size={18} className="text-orange-400" />

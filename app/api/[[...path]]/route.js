@@ -8,6 +8,13 @@ import {
   sendAffiliateApplicationNotification,
   sendAffiliateApproved,
 } from '@/lib/email'
+import {
+  PROGRAM,
+  QUICKSTART_TASKS,
+  TARGET_RESTAURANTS,
+  computeRank,
+  isUnlocked,
+} from '@/lib/affiliate-program'
 
 // firebase-admin needs the Node.js runtime (not edge)
 export const runtime = 'nodejs'
@@ -248,6 +255,7 @@ async function route(request, method) {
         // (authoritative), never trusted from the client.
         let affiliateCode = ''
         let affiliateName = ''
+        let affiliateDocId = ''
         let source = 'field-app'
         const rawCode = String(body?.affiliateCode || '').trim().toUpperCase()
         if (rawCode) {
@@ -262,6 +270,7 @@ async function route(request, method) {
           }
           affiliateCode = rawCode
           affiliateName = String(aDoc.data().name || '').slice(0, 200)
+          affiliateDocId = aDoc.id
           source = 'promoter'
         }
 
@@ -290,6 +299,16 @@ async function route(request, method) {
 
         const docRef = await db.collection('leads').add(lead)
         const leadId = docRef.id
+
+        // Log a referral event on the affiliate (append-only, timestamped) so
+        // points / leaderboards can attach later without a migration.
+        if (affiliateDocId) {
+          const { FieldValue } = await import('firebase-admin/firestore')
+          db.collection('affiliates').doc(affiliateDocId).set(
+            { events: FieldValue.arrayUnion({ type: 'lead_referred', leadId, at: new Date().toISOString() }) },
+            { merge: true },
+          ).catch((e) => console.error('[affiliate] event log failed', e))
+        }
 
         // Fire-and-forget notifications (don't block the response on email).
         sendLeadNotification({
@@ -426,11 +445,26 @@ async function route(request, method) {
           return cors(NextResponse.json({ valid: false }))
         }
         const ad = doc.data()
+        // Single-field query (no composite index); count 'won' in JS.
+        const leadsSnap = await db.collection('leads').where('affiliateCode', '==', code).limit(1000).get()
+        const leadCount = leadsSnap.size
+        let signedCount = 0
+        leadsSnap.docs.forEach((d) => { if (d.data().status === 'won') signedCount += 1 })
+        const checklist = ad.checklist || {}
+        const workbook = ad.workbook || { restaurants: [], notes: '' }
+        const workbookCount = (workbook.restaurants || []).length
         return cors(NextResponse.json({
           valid: true,
           name: ad.name || '',
           code,
           avatarUrl: ad.avatarUrl || '',
+          checklist,
+          workbook,
+          unlocked: isUnlocked({ checklist, workbookCount }),
+          rank: computeRank(signedCount),
+          signedCount,
+          leadCount,
+          founding: !!ad.foundingNumber && ad.foundingNumber <= PROGRAM.foundingCap,
           trainingAck: !!ad.trainingAckAt,
         }))
       }
@@ -447,6 +481,65 @@ async function route(request, method) {
         }
         await doc.ref.set({ trainingAckAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true })
         return cors(NextResponse.json({ ok: true, trainingAck: true }))
+      }
+
+      // Tick a quick-start task (public, by code): POST /api/affiliates/checklist
+      // body: { code, taskId, done }. Auto tasks (artifact-based) can't be ticked here.
+      if (id === 'checklist' && method === 'POST') {
+        const body = await request.json()
+        const code = String(body?.code || '').trim().toUpperCase()
+        const taskId = String(body?.taskId || '')
+        const done = body?.done !== false
+        if (!code || !taskId) return cors(NextResponse.json({ error: 'code and taskId required' }, { status: 400 }))
+        const task = QUICKSTART_TASKS.find((t) => t.id === taskId)
+        if (!task || task.auto) return cors(NextResponse.json({ error: 'unknown or auto task' }, { status: 400 }))
+        const snap = await db.collection('affiliates').where('code', '==', code).limit(1).get()
+        const doc = snap.docs[0]
+        if (!doc || doc.data().status !== 'approved') {
+          return cors(NextResponse.json({ error: 'invalid or inactive code' }, { status: 400 }))
+        }
+        const data = doc.data()
+        const checklist = { ...(data.checklist || {}) }
+        checklist[taskId] = { done, completedAt: done ? new Date().toISOString() : null }
+        const update = { checklist, updatedAt: new Date().toISOString() }
+        if (done) {
+          const { FieldValue } = await import('firebase-admin/firestore')
+          update.events = FieldValue.arrayUnion({ type: 'task_done', taskId, at: new Date().toISOString() })
+        }
+        await doc.ref.set(update, { merge: true })
+        const workbookCount = ((data.workbook || {}).restaurants || []).length
+        return cors(NextResponse.json({ ok: true, checklist, unlocked: isUnlocked({ checklist, workbookCount }) }))
+      }
+
+      // Save the workbook (public, by code): POST /api/affiliates/workbook
+      // body: { code, workbook }. NOTE: full-replace for now — move to granular
+      // add/update ops later (full-replace can clobber on multi-tab/multi-device).
+      if (id === 'workbook' && method === 'POST') {
+        const body = await request.json()
+        const code = String(body?.code || '').trim().toUpperCase()
+        if (!code) return cors(NextResponse.json({ error: 'code required' }, { status: 400 }))
+        const snap = await db.collection('affiliates').where('code', '==', code).limit(1).get()
+        const doc = snap.docs[0]
+        if (!doc || doc.data().status !== 'approved') {
+          return cors(NextResponse.json({ error: 'invalid or inactive code' }, { status: 400 }))
+        }
+        const wb = body?.workbook || {}
+        const STATUSES = ['to_contact', 'contacted', 'pitched', 'signed']
+        const restaurants = Array.isArray(wb.restaurants)
+          ? wb.restaurants.slice(0, 500).map((r) => ({
+              id: String(r?.id || '').slice(0, 64) || uuidv4(),
+              name: String(r?.name || '').slice(0, 200),
+              area: String(r?.area || '').slice(0, 200),
+              notes: String(r?.notes || '').slice(0, 1000),
+              status: STATUSES.includes(r?.status) ? r.status : 'to_contact',
+              leadId: r?.leadId ? String(r.leadId).slice(0, 64) : null, // link to a real lead later
+              createdAt: r?.createdAt || new Date().toISOString(),
+            }))
+          : []
+        const workbook = { restaurants, notes: String(wb.notes || '').slice(0, 5000) }
+        await doc.ref.set({ workbook, updatedAt: new Date().toISOString() }, { merge: true })
+        const checklist = doc.data().checklist || {}
+        return cors(NextResponse.json({ ok: true, workbook, unlocked: isUnlocked({ checklist, workbookCount: restaurants.length }) }))
       }
 
       // Finalize an avatar upload (durable URL) + save on the doc:
@@ -534,12 +627,33 @@ async function route(request, method) {
         const snap = await db.collection('affiliates').orderBy('createdAt', 'desc').limit(500).get()
         const affiliates = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         const counts = {}
+        const won = {}
         const leadsSnap = await db.collection('leads').where('source', '==', 'promoter').limit(2000).get()
         leadsSnap.docs.forEach((d) => {
           const c = d.data().affiliateCode
-          if (c) counts[c] = (counts[c] || 0) + 1
+          if (!c) return
+          counts[c] = (counts[c] || 0) + 1
+          if (d.data().status === 'won') won[c] = (won[c] || 0) + 1
         })
-        const withCounts = affiliates.map((a) => ({ ...a, leadCount: a.code ? counts[a.code] || 0 : 0 }))
+        const withCounts = affiliates.map((a) => {
+          const signedCount = a.code ? won[a.code] || 0 : 0
+          const wbRestaurants = (a.workbook || {}).restaurants || []
+          const workbookCount = wbRestaurants.length
+          const workbookSigned = wbRestaurants.filter((r) => r.status === 'signed').length
+          const checklistDone = QUICKSTART_TASKS.filter((t) =>
+            t.auto === 'workbook_target' ? workbookCount >= TARGET_RESTAURANTS : !!(a.checklist?.[t.id]?.done),
+          ).length
+          return {
+            ...a,
+            leadCount: a.code ? counts[a.code] || 0 : 0,
+            signedCount,
+            rank: computeRank(signedCount),
+            checklistDone,
+            checklistTotal: QUICKSTART_TASKS.length,
+            workbookCount,
+            workbookSigned,
+          }
+        })
         return cors(NextResponse.json({ affiliates: withCounts }))
       }
 
@@ -571,6 +685,10 @@ async function route(request, method) {
             if (!code) return cors(NextResponse.json({ error: 'could not generate a unique code; try again' }, { status: 500 }))
             update.code = code
             update.approvedAt = new Date().toISOString()
+            // Lifetime-rate lock-in PERK flag (separate from rank): sequence among
+            // approved affiliates. <= foundingCap keeps the top rate for life.
+            const approvedSnap = await db.collection('affiliates').where('status', '==', 'approved').limit(1000).get()
+            update.foundingNumber = approvedSnap.size + 1
             emailAfter = { to: current.email, name: current.name, code }
           }
         }
