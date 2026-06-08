@@ -81,25 +81,38 @@ const CopyBlock = ({ asset, substitute }) => {
   )
 }
 
-const DownloadAsset = ({ asset }) => (
-  <Card className="bg-zinc-900/70 border-zinc-800 p-4">
-    <div className="flex items-start justify-between gap-3 mb-2">
-      <div>
-        <h4 className="font-semibold text-sm">{asset.title}</h4>
-        {asset.note && <p className="text-xs text-zinc-500 mt-0.5">{asset.note}</p>}
+const DownloadAsset = ({ asset }) => {
+  const items = asset.items || []
+  const ready = items.some((it) => it && typeof it === 'object' && it.href)
+  return (
+    <Card className="bg-zinc-900/70 border-zinc-800 p-4">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div>
+          <h4 className="font-semibold text-sm">{asset.title}</h4>
+          {asset.note && <p className="text-xs text-zinc-500 mt-0.5">{asset.note}</p>}
+        </div>
+        <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${ready ? 'border-green-500/50 text-green-300' : 'border-zinc-700 text-zinc-500'}`}>{ready ? 'Ready' : 'Soon'}</Badge>
       </div>
-      <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px] flex-shrink-0">Soon</Badge>
-    </div>
-    <ul className="space-y-1.5 mt-2">
-      {(asset.items || []).map((it, i) => (
-        <li key={i} className="flex items-center justify-between gap-2 text-xs bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
-          <span className="text-zinc-300">{it}</span>
-          <span className="text-zinc-600 flex items-center gap-1.5"><Download size={12} /> Soon</span>
-        </li>
-      ))}
-    </ul>
-  </Card>
-)
+      <ul className="space-y-1.5 mt-2">
+        {items.map((it, i) => {
+          const obj = it && typeof it === 'object' ? it : { label: it }
+          return (
+            <li key={i} className="flex items-center justify-between gap-2 text-xs bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2">
+              <span className="text-zinc-300">{obj.label}</span>
+              {obj.href ? (
+                <a href={obj.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-orange-400 hover:text-orange-300 font-medium">
+                  <Download size={12} /> Open
+                </a>
+              ) : (
+                <span className="text-zinc-600 flex items-center gap-1.5"><Download size={12} /> Soon</span>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
 
 const SideItem = ({ icon: Icon, code, label, active, locked, onClick }) => (
   <button onClick={onClick}
