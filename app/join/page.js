@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,10 +12,11 @@ import { toast } from 'sonner'
 import {
   Sparkles, ArrowRight, Check, Gift, Megaphone, Tag, Share2, Wand2,
   HandCoins, Users, Mail, Phone, Instagram, User, CheckCircle2, Lock,
-  TrendingUp, Repeat, Award, Rocket, Crown, BadgePercent,
+  TrendingUp, Repeat, Award, Rocket, Crown, BadgePercent, Camera,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { PROGRAM, tierRangeLabel, money } from '@/lib/affiliate-program'
+import { uploadAffiliateAvatar } from '@/lib/upload'
 
 const STEPS = [
   { icon: Megaphone, title: 'Apply in 60 seconds', body: 'Tell us who you are and the restaurant crowd you reach. No fees, no commitment.' },
@@ -35,6 +36,17 @@ export default function JoinPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [ref, setRef] = useState({ code: '', name: '' })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState('')
+  const fileRef = useRef(null)
+
+  const pickAvatar = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (!/^image\//.test(f.type)) { toast.error('Please choose an image'); return }
+    setAvatarFile(f)
+    setAvatarPreview(URL.createObjectURL(f))
+  }
 
   // Recruiter referral: if an existing affiliate sent them here with ?ref=CODE,
   // validate it and pass it along so the recruiter gets credited on approval.
@@ -67,6 +79,9 @@ export default function JoinPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Something went wrong')
+      if (avatarFile && data.id) {
+        try { await uploadAffiliateAvatar(data.id, avatarFile) } catch (e) { /* avatar is optional — don't block */ }
+      }
       setSubmitted(true)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
@@ -235,6 +250,21 @@ export default function JoinPage() {
                 <p className="text-zinc-400 mt-2 text-sm">Takes under a minute. We'll be in touch by email.</p>
               </div>
               <form onSubmit={submit} className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0">
+                    {avatarPreview ? <img src={avatarPreview} alt="Profile preview" className="w-full h-full object-cover" /> : <User size={24} className="text-zinc-500" />}
+                  </div>
+                  <div>
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickAvatar} />
+                    <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="border-zinc-700 hover:bg-white/5 text-sm">
+                      <Camera size={14} className="mr-1.5" /> {avatarPreview ? 'Change photo' : 'Add profile photo'}
+                    </Button>
+                    {avatarPreview && (
+                      <button type="button" onClick={() => { setAvatarFile(null); setAvatarPreview('') }} className="ml-2 text-xs text-zinc-500 hover:text-orange-400">Remove</button>
+                    )}
+                    <p className="text-xs text-zinc-600 mt-1">Optional — a headshot helps us recognize you.</p>
+                  </div>
+                </div>
                 <div>
                   <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5"><User size={13} /> Your name *</Label>
                   <Input value={form.name} onChange={set('name')} placeholder="Maria Silva" className="bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500" />

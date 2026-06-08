@@ -11,7 +11,7 @@ import {
   KeyRound, ArrowLeft, Copy, Link as LinkIcon, Tag, Download, Lock,
   Rocket, Mail, Instagram, Share2, Image as ImageIcon, Presentation,
   GraduationCap, ShieldCheck, TrendingUp, Crown, Gift,
-  Video, MonitorPlay, LayoutTemplate, Trophy,
+  Video, MonitorPlay, LayoutTemplate, Trophy, Home, CheckCircle2,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import { PROGRAM, tierRangeLabel, money } from '@/lib/affiliate-program'
@@ -85,11 +85,112 @@ const DownloadAsset = ({ asset }) => (
   </Card>
 )
 
-export default function KitPage() {
+const SideItem = ({ icon: Icon, code, label, active, locked, onClick }) => (
+  <button onClick={onClick}
+    className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 whitespace-nowrap flex-shrink-0 lg:w-full text-left transition ${
+      active ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'
+    }`}>
+    {code && <span className={`text-[10px] font-mono ${active ? 'text-white/70' : 'text-zinc-600'}`}>{code}</span>}
+    <Icon size={15} />
+    <span className="flex-1">{label}</span>
+    {locked && !active && <Lock size={12} className="text-zinc-600" />}
+  </button>
+)
+
+const LockedPanel = ({ onHome }) => (
+  <Card className="bg-zinc-900/60 border-zinc-800 p-10 text-center">
+    <div className="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mx-auto mb-4">
+      <Lock size={24} className="text-zinc-400" />
+    </div>
+    <h3 className="text-lg font-bold mb-1.5">Finish your quick-start first</h3>
+    <p className="text-sm text-zinc-500 max-w-sm mx-auto mb-5">Your kit and tracking link unlock once you complete the 7-day quick-start on Home. It takes a minute to read.</p>
+    <Button onClick={onHome} className="bg-orange-500 hover:bg-orange-600 text-white"><Home size={14} className="mr-1.5" /> Go to Home</Button>
+  </Card>
+)
+
+const HomePanel = ({ affiliate, locked, trackingLink, quickStart, onAck }) => (
+  <div className="space-y-5">
+    <div>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome{affiliate.name ? `, ${affiliate.name.split(' ')[0]}` : ''}.</h1>
+      <p className="text-zinc-500 mt-1 text-sm">Your home base for referring restaurants.</p>
+    </div>
+
+    {locked ? (
+      <Card className="bg-zinc-900/70 border-orange-500/40 p-5 backdrop-blur">
+        <div className="flex items-center gap-2 mb-2">
+          <Rocket size={16} className="text-orange-400" />
+          <h2 className="font-bold">Before you start — 7-day quick-start</h2>
+        </div>
+        <p className="text-sm text-zinc-400 mb-3">Read this, then mark it done to unlock your tracking link and full kit.</p>
+        <pre className="text-xs text-zinc-300 whitespace-pre-wrap font-sans bg-zinc-950 border border-zinc-800 rounded-lg p-3 max-h-72 overflow-y-auto mb-4">{quickStart}</pre>
+        <Button onClick={onAck} className="bg-orange-500 hover:bg-orange-600 text-white w-full sm:w-auto">
+          <CheckCircle2 size={15} className="mr-1.5" /> Mark quick-start complete
+        </Button>
+      </Card>
+    ) : (
+      <Card className="bg-zinc-900/70 border-green-500/30 p-4 backdrop-blur flex items-center gap-2 text-sm">
+        <CheckCircle2 size={16} className="text-green-400" /> Quick-start complete — your kit is unlocked.
+      </Card>
+    )}
+
+    <Card className="bg-zinc-900/70 border-orange-500/30 p-5 backdrop-blur">
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1.5"><Tag size={12} /> Your code</div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-lg font-bold font-mono text-orange-300 bg-zinc-950 border border-dashed border-orange-500/50 rounded-lg px-3 py-2 truncate">{affiliate.code}</code>
+            <Button size="sm" onClick={() => copyText(affiliate.code)} className="bg-orange-500 hover:bg-orange-600 text-white"><Copy size={13} /></Button>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1.5"><LinkIcon size={12} /> Your tracking link</div>
+          {locked ? (
+            <div className="flex items-center gap-2 text-sm text-zinc-500 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5">
+              <Lock size={13} /> Unlocks after quick-start
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs font-mono text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 truncate">{trackingLink}</code>
+              <Button size="sm" onClick={() => copyText(trackingLink)} className="bg-orange-500 hover:bg-orange-600 text-white"><Copy size={13} /></Button>
+            </div>
+          )}
+        </div>
+      </div>
+      {!locked && (
+        <p className="text-xs text-zinc-500 mt-3">Swipe copy in each section uses <code className="text-orange-300">{'{{LINK}}'}</code> and <code className="text-orange-300">{'{{CODE}}'}</code> — already filled with your details when you copy.</p>
+      )}
+    </Card>
+
+    <Card className="bg-zinc-900/70 border-zinc-800 p-5 backdrop-blur">
+      <div className="flex items-center gap-2 mb-3">
+        <Gift size={16} className="text-orange-400" />
+        <h2 className="font-bold">Your program — {PROGRAM.statusName}</h2>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {PROGRAM.commission.tiers.map((t, i) => (
+          <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-zinc-500">{tierRangeLabel(PROGRAM.commission.tiers, i)} venues</div>
+            <div className="text-2xl font-bold text-gradient-orange">{t.rate}%</div>
+          </div>
+        ))}
+      </div>
+      <ul className="space-y-1.5 text-xs text-zinc-400">
+        {PROGRAM.commission.retroactive && (
+          <li className="flex items-start gap-2"><TrendingUp size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> Retroactive — crossing a tier lifts every venue you've signed to the new rate.</li>
+        )}
+        <li className="flex items-start gap-2"><Crown size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> {PROGRAM.bonuses.foundingLockIn}</li>
+        <li className="flex items-start gap-2"><Gift size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> {money(PROGRAM.bonuses.fastStart.amount)} Fast-Start + {money(PROGRAM.bonuses.recruiter.amount)} Recruiter reward.</li>
+      </ul>
+    </Card>
+  </div>
+)
+
+export default function DashboardPage() {
   const [phase, setPhase] = useState('gate')
   const [codeInput, setCodeInput] = useState('')
   const [checking, setChecking] = useState(false)
-  const [affiliate, setAffiliate] = useState({ code: '', name: '' })
+  const [affiliate, setAffiliate] = useState({ code: '', name: '', avatarUrl: '', trainingAck: false })
+  const [active, setActive] = useState('home')
 
   useEffect(() => {
     let initial = ''
@@ -109,7 +210,7 @@ export default function KitPage() {
       const res = await fetch(`/api/affiliates/validate?code=${encodeURIComponent(code)}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.valid) throw new Error('That code isn’t valid or active')
-      setAffiliate({ code: data.code || code, name: data.name || '' })
+      setAffiliate({ code: data.code || code, name: data.name || '', avatarUrl: data.avatarUrl || '', trainingAck: !!data.trainingAck })
       setPhase('ready')
       try { localStorage.setItem('fl_affiliate_code', data.code || code) } catch (e) {}
     } catch (err) {
@@ -117,6 +218,19 @@ export default function KitPage() {
     } finally {
       setChecking(false)
     }
+  }
+
+  const ackTraining = async () => {
+    try {
+      const res = await fetch('/api/affiliates/ack-training', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: affiliate.code }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Could not save')
+      setAffiliate((a) => ({ ...a, trainingAck: true }))
+      toast.success('Quick-start complete — your kit is unlocked! 🎉')
+    } catch (e) { toast.error(e.message) }
   }
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://demo.foodlensgroup.com'
@@ -128,6 +242,14 @@ export default function KitPage() {
       .replace(/\{\{LINK_FIELD\}\}/g, fieldLink)
       .replace(/\{\{LINK\}\}/g, trackingLink)
 
+  const quickStart = (() => {
+    const s = KIT_SECTIONS.find((x) => x.id === 'start')
+    const a = s?.assets?.find((x) => x.id === 'checklist')
+    return a?.variants?.[0]?.body || ''
+  })()
+
+  const locked = !affiliate.trainingAck
+
   // ---- GATE ----
   if (phase !== 'ready') {
     return (
@@ -135,7 +257,7 @@ export default function KitPage() {
         <nav className="glass sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2"><Logo size="sm" /></Link>
-            <Badge variant="outline" className="border-orange-500/40 text-orange-400 text-[10px]">KIT</Badge>
+            <Badge variant="outline" className="border-orange-500/40 text-orange-400 text-[10px]">DASHBOARD</Badge>
           </div>
         </nav>
         <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -143,14 +265,14 @@ export default function KitPage() {
             <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mx-auto mb-5">
               <KeyRound size={26} className="text-orange-400" />
             </div>
-            <h1 className="text-xl font-bold text-center mb-1">Open your Affiliate Kit</h1>
-            <p className="text-sm text-zinc-500 text-center mb-6">Enter your affiliate code to unlock your scripts, copy and assets.</p>
+            <h1 className="text-xl font-bold text-center mb-1">Open your Affiliate Dashboard</h1>
+            <p className="text-sm text-zinc-500 text-center mb-6">Enter your affiliate code to unlock your dashboard, scripts and assets.</p>
             <form onSubmit={(e) => { e.preventDefault(); validateCode(codeInput) }} className="space-y-3">
               <Input value={codeInput} onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                 placeholder="FL-MARIA-7G2" autoCapitalize="characters" autoCorrect="off" spellCheck="false"
                 className="bg-zinc-950 border-zinc-800 focus-visible:ring-orange-500 text-center font-mono tracking-wider" autoFocus />
               <Button type="submit" disabled={checking} className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold">
-                {checking ? 'Checking…' : 'Open kit'}
+                {checking ? 'Checking…' : 'Open dashboard'}
               </Button>
             </form>
             <p className="mt-5 text-center text-xs text-zinc-500">
@@ -162,103 +284,77 @@ export default function KitPage() {
     )
   }
 
-  // ---- READY ----
+  const activeSection = KIT_SECTIONS.find((s) => s.id === active)
+
+  // ---- READY (dashboard) ----
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-50 overflow-x-hidden" style={GRID_BG}>
       <nav className="glass sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2"><Logo size="sm" /></Link>
           <Link href={`/field?code=${encodeURIComponent(affiliate.code)}`}>
-            <Button size="sm" variant="outline" className="border-zinc-800 text-xs"><ArrowLeft size={13} className="mr-1.5" /> Back to intake</Button>
+            <Button size="sm" variant="outline" className="border-zinc-800 text-xs"><ArrowLeft size={13} className="mr-1.5" /> Add a lead</Button>
           </Link>
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Affiliate Kit</h1>
-          <p className="text-zinc-500 mt-1">{affiliate.name ? `${affiliate.name} — everything` : 'Everything'} you need to start referring restaurants.</p>
-        </div>
-
-        {/* Code + tracking link */}
-        <Card className="bg-zinc-900/70 border-orange-500/30 p-5 mb-5 backdrop-blur">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <div className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1.5"><Tag size={12} /> Your code</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-lg font-bold font-mono text-orange-300 bg-zinc-950 border border-dashed border-orange-500/50 rounded-lg px-3 py-2 truncate">{affiliate.code}</code>
-                <Button size="sm" onClick={() => copyText(affiliate.code)} className="bg-orange-500 hover:bg-orange-600 text-white"><Copy size={13} /></Button>
-              </div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1.5"><LinkIcon size={12} /> Your tracking link</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs font-mono text-zinc-300 bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 truncate">{trackingLink}</code>
-                <Button size="sm" onClick={() => copyText(trackingLink)} className="bg-orange-500 hover:bg-orange-600 text-white"><Copy size={13} /></Button>
-              </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 lg:flex lg:gap-6">
+        {/* Sidebar console nav */}
+        <aside className="lg:w-60 lg:flex-shrink-0 mb-4 lg:mb-0">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            {affiliate.avatarUrl
+              ? <img src={affiliate.avatarUrl} alt={affiliate.name} className="w-9 h-9 rounded-full object-cover border border-zinc-700" />
+              : <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-400 font-semibold">{(affiliate.name || '?').charAt(0).toUpperCase()}</div>}
+            <div className="min-w-0">
+              <div className="text-sm font-semibold truncate">{affiliate.name || 'Affiliate'}</div>
+              <div className="text-[11px] font-mono text-orange-300 truncate">{affiliate.code}</div>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 mt-3">Swipe copy below uses <code className="text-orange-300">{'{{LINK}}'}</code> and <code className="text-orange-300">{'{{CODE}}'}</code> — already filled with your details when you copy.</p>
-        </Card>
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1">
+            <SideItem icon={Home} label="Home" active={active === 'home'} onClick={() => setActive('home')} />
+            {KIT_SECTIONS.map((s) => {
+              const Icon = ICONS[s.icon] || Rocket
+              return (
+                <SideItem key={s.id} icon={Icon} code={s.code} label={s.title}
+                  active={active === s.id} locked={locked}
+                  onClick={() => setActive(s.id)} />
+              )
+            })}
+          </nav>
+        </aside>
 
-        {/* Program summary */}
-        <Card className="bg-zinc-900/70 border-zinc-800 p-5 mb-8 backdrop-blur">
-          <div className="flex items-center gap-2 mb-3">
-            <Gift size={16} className="text-orange-400" />
-            <h2 className="font-bold">Your program — {PROGRAM.statusName}</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {PROGRAM.commission.tiers.map((t, i) => (
-              <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-center">
-                <div className="text-[10px] uppercase tracking-wider text-zinc-500">{tierRangeLabel(PROGRAM.commission.tiers, i)} venues</div>
-                <div className="text-2xl font-bold text-gradient-orange">{t.rate}%</div>
+        {/* Main panel */}
+        <div className="flex-1 min-w-0">
+          {active === 'home' ? (
+            <HomePanel
+              affiliate={affiliate} locked={locked} trackingLink={trackingLink}
+              quickStart={substitute(quickStart)} onAck={ackTraining}
+            />
+          ) : locked ? (
+            <LockedPanel onHome={() => setActive('home')} />
+          ) : (
+            <section>
+              <div className="flex items-center gap-2.5 mb-3">
+                <span className="text-xs font-mono text-zinc-600">{activeSection?.code}</span>
+                <h2 className="text-2xl font-bold tracking-tight">{activeSection?.title}</h2>
+                {activeSection?.phase && <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px]">{activeSection.phase} · soon</Badge>}
               </div>
-            ))}
-          </div>
-          <ul className="space-y-1.5 text-xs text-zinc-400">
-            {PROGRAM.commission.retroactive && (
-              <li className="flex items-start gap-2"><TrendingUp size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> Retroactive — crossing a tier lifts every venue you've signed to the new rate.</li>
-            )}
-            <li className="flex items-start gap-2"><Crown size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> {PROGRAM.bonuses.foundingLockIn}</li>
-            <li className="flex items-start gap-2"><Gift size={13} className="text-orange-400 mt-0.5 flex-shrink-0" /> {money(PROGRAM.bonuses.fastStart.amount)} Fast-Start + {money(PROGRAM.bonuses.recruiter.amount)} Recruiter reward.</li>
-          </ul>
-        </Card>
-
-        {/* Sections */}
-        <div className="space-y-10">
-          {KIT_SECTIONS.map((section) => {
-            const Icon = ICONS[section.icon] || Rocket
-            const empty = (section.assets || []).length === 0
-            return (
-              <section key={section.id}>
-                <div className="flex items-center gap-2.5 mb-3">
-                  <span className="text-xs font-mono text-zinc-600">{section.code}</span>
-                  <Icon size={18} className="text-orange-400" />
-                  <h3 className="text-lg font-bold">{section.title}</h3>
-                  {section.phase && <Badge variant="outline" className="border-zinc-700 text-zinc-500 text-[10px]">{section.phase} · soon</Badge>}
+              {activeSection?.blurb && <p className="text-sm text-zinc-500 mb-4">{activeSection.blurb}</p>}
+              {(activeSection?.assets || []).length === 0 ? (
+                <Card className="bg-zinc-900/40 border-dashed border-zinc-800 p-10 text-center text-sm text-zinc-600">
+                  Coming soon — assets for this category land here.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {activeSection.assets.map((asset) =>
+                    asset.type === 'download'
+                      ? <DownloadAsset key={asset.id} asset={asset} />
+                      : <CopyBlock key={asset.id} asset={asset} substitute={substitute} />,
+                  )}
                 </div>
-                {section.blurb && <p className="text-sm text-zinc-500 mb-4">{section.blurb}</p>}
-                {empty ? (
-                  <Card className="bg-zinc-900/40 border-dashed border-zinc-800 p-6 text-center text-sm text-zinc-600">
-                    Coming soon — assets for this category land here.
-                  </Card>
-                ) : (
-                  <div className="space-y-3">
-                    {section.assets.map((asset) =>
-                      asset.type === 'download'
-                        ? <DownloadAsset key={asset.id} asset={asset} />
-                        : <CopyBlock key={asset.id} asset={asset} substitute={substitute} />,
-                    )}
-                  </div>
-                )}
-              </section>
-            )
-          })}
-        </div>
-
-        <div className="mt-12 pt-6 border-t border-zinc-900 flex items-center justify-between text-sm text-zinc-500">
-          <span className="flex items-center gap-2"><Logo size="xs" /></span>
-          <Link href="/admin" className="flex items-center gap-1.5 hover:text-orange-400 transition"><Lock size={12} /> Admin</Link>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </main>

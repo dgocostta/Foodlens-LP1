@@ -121,6 +121,14 @@ async function route(request, method) {
         const snap = await db.collection('leads').doc(leadId).get()
         if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
         storagePath = `leads/${leadId}/${uuidv4()}-${safeName}`
+      } else if (scope === 'affiliate') {
+        if (!db) return notConfigured()
+        if (!/^image\//.test(contentType)) return cors(NextResponse.json({ error: 'avatar must be an image' }, { status: 400 }))
+        const affiliateId = String(body?.affiliateId || '')
+        if (!affiliateId) return cors(NextResponse.json({ error: 'affiliateId required' }, { status: 400 }))
+        const aSnap = await db.collection('affiliates').doc(affiliateId).get()
+        if (!aSnap.exists) return cors(NextResponse.json({ error: 'affiliate not found' }, { status: 404 }))
+        storagePath = `affiliates/${affiliateId}/${uuidv4()}-${safeName}`
       } else {
         return cors(NextResponse.json({ error: 'invalid scope' }, { status: 400 }))
       }
@@ -314,13 +322,22 @@ async function route(request, method) {
         }
 
         const today = url.searchParams.get('today') === '1'
+        const filterCode = (url.searchParams.get('affiliateCode') || '').trim().toUpperCase()
         let query = db.collection('leads')
-        if (today) {
-          const start = new Date()
-          start.setHours(0, 0, 0, 0)
-          query = query.where('createdAt', '>=', start.toISOString())
+        let sortInJs = false
+        if (filterCode) {
+          // Single-field equality (no composite index needed); sorted in JS below.
+          query = query.where('affiliateCode', '==', filterCode).limit(500)
+          sortInJs = true
+        } else {
+          if (today) {
+            const start = new Date()
+            start.setHours(0, 0, 0, 0)
+            query = query.where('createdAt', '>=', start.toISOString())
+          }
+          query = query.orderBy('createdAt', 'desc').limit(500)
         }
-        const snap = await query.orderBy('createdAt', 'desc').limit(500).get()
+        const snap = await query.get()
 
         const leads = await Promise.all(
           snap.docs.map(async (d) => {
@@ -337,6 +354,7 @@ async function route(request, method) {
           }),
         )
 
+        if (sortInJs) leads.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         return cors(NextResponse.json({ leads }))
       }
 
@@ -407,7 +425,59 @@ async function route(request, method) {
         if (!doc || doc.data().status !== 'approved') {
           return cors(NextResponse.json({ valid: false }))
         }
-        return cors(NextResponse.json({ valid: true, name: doc.data().name || '', code }))
+        const ad = doc.data()
+        return cors(NextResponse.json({
+          valid: true,
+          name: ad.name || '',
+          code,
+          avatarUrl: ad.avatarUrl || '',
+          trainingAck: !!ad.trainingAckAt,
+        }))
+      }
+
+      // Acknowledge basic training (public, by code): POST /api/affiliates/ack-training
+      if (id === 'ack-training' && method === 'POST') {
+        const body = await request.json()
+        const code = String(body?.code || '').trim().toUpperCase()
+        if (!code) return cors(NextResponse.json({ error: 'code required' }, { status: 400 }))
+        const snap = await db.collection('affiliates').where('code', '==', code).limit(1).get()
+        const doc = snap.docs[0]
+        if (!doc || doc.data().status !== 'approved') {
+          return cors(NextResponse.json({ error: 'invalid or inactive code' }, { status: 400 }))
+        }
+        await doc.ref.set({ trainingAckAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true })
+        return cors(NextResponse.json({ ok: true, trainingAck: true }))
+      }
+
+      // Finalize an avatar upload (durable URL) + save on the doc:
+      // POST /api/affiliates/<id>/avatar-finalize  (public; used right after signup)
+      if (id && sub === 'avatar-finalize' && method === 'POST') {
+        const bucket = getBucket()
+        if (!bucket) return cors(NextResponse.json({ error: 'Storage not configured.' }, { status: 503 }))
+        const ref = db.collection('affiliates').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'affiliate not found' }, { status: 404 }))
+        const body = await request.json()
+        const filePath = String(body?.path || '')
+        if (!filePath.startsWith(`affiliates/${id}/`)) return cors(NextResponse.json({ error: 'invalid path' }, { status: 400 }))
+        const token = uuidv4()
+        await bucket.file(filePath).setMetadata({ metadata: { firebaseStorageDownloadTokens: token }, cacheControl: 'public, max-age=31536000' })
+        const avatarUrl = downloadUrl(bucket.name, filePath, token)
+        await ref.set({ avatarPath: filePath, avatarUrl, updatedAt: new Date().toISOString() }, { merge: true })
+        return cors(NextResponse.json({ ok: true, url: avatarUrl }))
+      }
+
+      // Resend the approval email (code + dashboard link): POST /api/affiliates/<id>/send-link (admin)
+      if (id && sub === 'send-link' && method === 'POST') {
+        const adminKey = (request.headers.get('x-admin-key') || '').trim()
+        if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        const ref = db.collection('affiliates').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'affiliate not found' }, { status: 404 }))
+        const a = snap.data()
+        if (!a.code) return cors(NextResponse.json({ error: 'affiliate has no code yet — approve first' }, { status: 400 }))
+        const r = await sendAffiliateApproved({ to: a.email, name: a.name, code: a.code })
+        return cors(NextResponse.json({ ok: true, sent: r?.sent !== false }))
       }
 
       // Apply (public): POST /api/affiliates → saved as 'pending'
