@@ -8,11 +8,11 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
-  Upload, ArrowRight, Sparkles, Check, Camera, Video, Copy,
+  Upload, ArrowRight, Sparkles, Check, Camera, Video, Copy, FileText,
   Instagram, PartyPopper, Wand2,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
-import { uploadLeadFile } from '@/lib/upload'
+import { uploadLeadFile, uploadLeadMenuFile } from '@/lib/upload'
 
 function OnboardingInner() {
   const search = useSearchParams()
@@ -26,6 +26,9 @@ function OnboardingInner() {
   const [done, setDone] = useState(false)
   const photoRef = useRef(null)
   const videoRef = useRef(null)
+  const menuRef = useRef(null)
+  const [menuCount, setMenuCount] = useState(0)
+  const [uploadingMenu, setUploadingMenu] = useState(false)
 
   const upload = async (file) => {
     if (!file) return
@@ -46,6 +49,21 @@ function OnboardingInner() {
     } catch (err) {
       setUploading(false)
       toast.error(err.message || 'Upload failed. Please try again.')
+    }
+  }
+
+  const uploadMenu = async (files) => {
+    const list = Array.from(files || [])
+    if (!list.length) return
+    if (!leadId) { toast.error("Couldn't link this to your signup."); return }
+    setUploadingMenu(true)
+    try {
+      for (const f of list) { await uploadLeadMenuFile(leadId, f); setMenuCount((n) => n + 1) }
+      toast.success('Menu received — thank you!')
+    } catch (err) {
+      toast.error(err.message || 'Menu upload failed.')
+    } finally {
+      setUploadingMenu(false)
     }
   }
 
@@ -141,6 +159,18 @@ function OnboardingInner() {
                 <span className="text-sm font-medium">Uploading…</span>
               </div>
             )}
+
+            <div className="mt-4">
+              <input ref={menuRef} type="file" accept="image/*,application/pdf" multiple onChange={(e) => uploadMenu(e.target.files)} className="hidden" />
+              <button type="button" onClick={() => menuRef.current?.click()} disabled={uploadingMenu}
+                className="tap-scale w-full border-2 border-dashed border-zinc-800 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-5 text-center group disabled:opacity-50">
+                <div className="flex items-center justify-center gap-2 text-zinc-300">
+                  <FileText size={18} className="text-orange-400" />
+                  <span className="text-sm font-semibold">{uploadingMenu ? 'Uploading…' : 'Also have your current menu? Add a photo or PDF'}</span>
+                </div>
+                {menuCount > 0 && <div className="text-xs text-zinc-500 mt-1">{menuCount} menu file{menuCount === 1 ? '' : 's'} added — thank you!</div>}
+              </button>
+            </div>
 
             <p className="mt-6 text-center text-xs text-zinc-500">
               Optional — you can do this anytime. Your spot is already saved.

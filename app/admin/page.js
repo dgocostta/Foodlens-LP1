@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Lock, RefreshCw, Users, Calendar, Instagram, Phone, Mail, ArrowLeft, Film,
   Save, RotateCcw, ExternalLink, Play, X, Copy, MessageCircle, Wand2, Image as ImageIcon,
   Video, ListChecks, Clapperboard, Upload,
   UserPlus, Check, Ban, Pause, Clock, Filter, Tag, Send, ChevronRight,
+  Plus, Trash2, MapPin, FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DEFAULT_DISHES, DEFAULT_DECK } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
-import { uploadMediaFile } from '@/lib/upload'
+import { uploadMediaFile, uploadLeadFile, uploadLeadMenuFile } from '@/lib/upload'
 
 const PIPELINE = ['new', 'contacted', 'photos_uploaded', 'video_generating', 'video_sent', 'won', 'lost']
 
@@ -63,6 +66,8 @@ export default function AdminPage() {
   const [loadingLeads, setLoadingLeads] = useState(false)
   const [selected, setSelected] = useState(null)
   const [refFilter, setRefFilter] = useState('all')
+  const [showAdd, setShowAdd] = useState(false)
+  const [affCodes, setAffCodes] = useState([])
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('fl_admin_key') : null
@@ -82,6 +87,7 @@ export default function AdminPage() {
       localStorage.setItem('fl_admin_key', k)
       setAuthed(true)
       loadLeads(k, todayOnly)
+      loadAffCodes(k)
     } catch (e) {
       toast.error('Wrong key')
       localStorage.removeItem('fl_admin_key')
@@ -132,6 +138,31 @@ export default function AdminPage() {
     } catch (e) {
       toast.error(e.message)
     }
+  }
+
+  const loadAffCodes = async (k = key) => {
+    try {
+      const res = await fetch('/api/affiliates', { headers: { 'X-Admin-Key': k } })
+      const data = await res.json().catch(() => ({}))
+      setAffCodes((data.affiliates || []).filter((a) => a.code).map((a) => a.code))
+    } catch (e) { /* non-fatal */ }
+  }
+
+  const addLead = async (payload) => {
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': key },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Could not add lead')
+    setLeads((arr) => [data.lead, ...arr])
+    return data.lead
+  }
+
+  const patchLeadLocal = (id, patch) => {
+    setLeads((arr) => arr.map((l) => (l.id === id ? { ...l, ...patch } : l)))
+    setSelected((s) => (s && s.id === id ? { ...s, ...patch } : s))
   }
 
   const referrers = Array.from(new Set(leads.map((l) => l.affiliateName).filter(Boolean))).sort()
@@ -196,6 +227,9 @@ export default function AdminPage() {
                 <p className="text-zinc-500 mt-1">Your pipeline — click any lead to open it.</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => setShowAdd(true)} className="bg-orange-500 hover:bg-orange-600 text-white">
+                  <Plus size={14} className="mr-1.5" /> Add lead
+                </Button>
                 <Button size="sm" variant={todayOnly ? 'default' : 'outline'}
                   onClick={() => { setTodayOnly(true); loadLeads(key, true) }}
                   className={todayOnly ? 'bg-orange-500 hover:bg-orange-600' : 'border-zinc-800'}>Today</Button>
@@ -275,20 +309,85 @@ export default function AdminPage() {
       {selected && (
         <LeadDetail
           lead={selected}
+          adminKey={key}
           onClose={() => setSelected(null)}
           onStatus={(s) => updateStatus(selected, s)}
           onGenerate={() => generateVideo(selected)}
+          onPatched={(patch) => patchLeadLocal(selected.id, patch)}
+        />
+      )}
+
+      {showAdd && (
+        <AddLeadModal
+          affCodes={affCodes}
+          onClose={() => setShowAdd(false)}
+          onCreate={addLead}
+          onCreated={(lead) => { setShowAdd(false); if (lead) setSelected(lead) }}
         />
       )}
     </main>
   )
 }
 
-const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
+const LeadDetail = ({ lead, adminKey, onClose, onStatus, onGenerate, onPatched }) => {
   const digits = (lead.phone || '').replace(/[^\d]/g, '')
   const ig = (lead.instagram || '').replace(/^@/, '')
+  const dishRef = useRef(null)
+  const menuRef = useRef(null)
+  const [uploadingDish, setUploadingDish] = useState(false)
+  const [uploadingMenu, setUploadingMenu] = useState(false)
+  const [locName, setLocName] = useState('')
+  const [locArea, setLocArea] = useState('')
+
   const copy = (txt) => navigator.clipboard.writeText(txt).then(
     () => toast.success('Copied'), () => toast.error('Could not copy'))
+
+  const sendEmail = () => {
+    if (!lead.email) return
+    const subject = `FoodLens — your video menu`
+    const body = `Hi ${lead.ownerName || 'there'},\n\nFollowing up on FoodLens for ${lead.restaurantName || 'your restaurant'} — happy to get your video menu set up whenever suits.\n\nBest,\nDiego`
+    window.location.href = `mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  }
+
+  const uploadDish = async (files) => {
+    const list = Array.from(files || [])
+    if (!list.length) return
+    setUploadingDish(true)
+    try {
+      const added = []
+      for (const f of list) { const p = await uploadLeadFile(lead.id, f); if (p) added.push(p) }
+      if (added.length) onPatched({ photos: [...(lead.photos || []), ...added], status: 'photos_uploaded' })
+      toast.success(`${added.length} added`)
+    } catch (e) { toast.error(e.message) } finally { setUploadingDish(false) }
+  }
+
+  const uploadMenu = async (files) => {
+    const list = Array.from(files || [])
+    if (!list.length) return
+    setUploadingMenu(true)
+    try {
+      const added = []
+      for (const f of list) { const p = await uploadLeadMenuFile(lead.id, f); if (p) added.push(p) }
+      if (added.length) onPatched({ menuPhotos: [...(lead.menuPhotos || []), ...added] })
+      toast.success(`${added.length} menu file(s) added`)
+    } catch (e) { toast.error(e.message) } finally { setUploadingMenu(false) }
+  }
+
+  const saveLocations = async (next) => {
+    onPatched({ locations: next })
+    try {
+      await fetch(`/api/leads/${lead.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ locations: next }),
+      })
+    } catch (e) { toast.error('Could not save locations') }
+  }
+  const addLocation = () => {
+    if (!locName.trim() && !locArea.trim()) return
+    saveLocations([...(lead.locations || []), { name: locName.trim(), area: locArea.trim() }])
+    setLocName(''); setLocArea('')
+  }
+  const removeLocation = (i) => saveLocations((lead.locations || []).filter((_, idx) => idx !== i))
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -297,7 +396,7 @@ const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
         <div className="sticky top-0 glass px-5 py-4 flex items-center justify-between border-b border-zinc-800">
           <div>
             <div className="text-lg font-bold leading-tight">{lead.restaurantName}</div>
-            <div className="text-xs text-zinc-500">{lead.ownerName}</div>
+            <div className="text-xs text-zinc-500">{lead.ownerName}{lead.affiliateName ? ` · via ${lead.affiliateName}` : ''}</div>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5"><X size={18} /></button>
         </div>
@@ -316,13 +415,12 @@ const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
             </div>
           </div>
 
-          {/* Contact quick actions */}
+          {/* Contact + Send email */}
           <div>
             <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Contact</div>
             <div className="space-y-2">
               <ContactRow icon={Mail} label={lead.email || '—'}
                 actions={lead.email && [
-                  { node: <a href={`mailto:${lead.email}`} className="hover:text-orange-400"><Mail size={14} /></a> },
                   { node: <button onClick={() => copy(lead.email)} className="hover:text-orange-400"><Copy size={14} /></button> },
                 ]} />
               <ContactRow icon={Phone} label={lead.phone || '—'}
@@ -335,13 +433,42 @@ const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
                   { node: <a href={`https://instagram.com/${ig}`} target="_blank" rel="noreferrer" className="hover:text-orange-400"><ExternalLink size={14} /></a> },
                 ]} />
             </div>
+            {lead.email && (
+              <Button size="sm" onClick={sendEmail} className="mt-2 bg-orange-500 hover:bg-orange-600 text-white">
+                <Mail size={14} className="mr-1.5" /> Send email
+              </Button>
+            )}
           </div>
 
-          {/* Photos / uploads */}
+          {/* Locations */}
           <div>
-            <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Uploads ({(lead.photos || []).length})</div>
+            <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Locations · one account = one venue</div>
+            {(lead.locations || []).length > 0 && (
+              <ul className="space-y-1.5 mb-2">
+                {(lead.locations || []).map((loc, i) => (
+                  <li key={i} className="flex items-center justify-between gap-2 text-sm bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+                    <span className="inline-flex items-center gap-1.5 min-w-0"><MapPin size={12} className="text-zinc-500 flex-shrink-0" /> <span className="truncate">{loc.name}{loc.area ? ` — ${loc.area}` : ''}</span></span>
+                    <button onClick={() => removeLocation(i)} className="text-zinc-600 hover:text-red-400 flex-shrink-0"><Trash2 size={13} /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <Input value={locName} onChange={(e) => setLocName(e.target.value)} placeholder="Name" className="bg-zinc-900 border-zinc-800 h-8 text-xs" />
+              <Input value={locArea} onChange={(e) => setLocArea(e.target.value)} placeholder="Area" className="bg-zinc-900 border-zinc-800 h-8 text-xs" />
+              <Button size="sm" variant="outline" onClick={addLocation} className="border-zinc-700 h-8"><Plus size={13} /></Button>
+            </div>
+          </div>
+
+          {/* Dish photos */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs uppercase tracking-wider text-zinc-500">Dish photos ({(lead.photos || []).length})</div>
+              <input ref={dishRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => uploadDish(e.target.files)} />
+              <button onClick={() => dishRef.current?.click()} disabled={uploadingDish} className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1"><Upload size={12} /> {uploadingDish ? 'Uploading…' : 'Add'}</button>
+            </div>
             {(lead.photos || []).length === 0 ? (
-              <p className="text-sm text-zinc-600">No photos or videos uploaded.</p>
+              <p className="text-sm text-zinc-600">No dish photos yet.</p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {(lead.photos || []).map((p, i) => (
@@ -353,6 +480,31 @@ const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
                       <img src={p.url} alt={p.name || 'upload'} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-600"><ImageIcon size={16} /></div>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Menu photos (image or PDF) */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs uppercase tracking-wider text-zinc-500">Menu photos ({(lead.menuPhotos || []).length})</div>
+              <input ref={menuRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => uploadMenu(e.target.files)} />
+              <button onClick={() => menuRef.current?.click()} disabled={uploadingMenu} className="text-xs text-orange-400 hover:text-orange-300 inline-flex items-center gap-1"><Upload size={12} /> {uploadingMenu ? 'Uploading…' : 'Add'}</button>
+            </div>
+            {(lead.menuPhotos || []).length === 0 ? (
+              <p className="text-sm text-zinc-600">No menu yet — image or PDF.</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {(lead.menuPhotos || []).map((p, i) => (
+                  <a key={i} href={p.url || '#'} target="_blank" rel="noreferrer"
+                    className="relative aspect-square rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-orange-500 flex items-center justify-center">
+                    {p.url && /^image\//.test(p.contentType || '') ? (
+                      <img src={p.url} alt={p.name || 'menu'} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-zinc-400 flex flex-col items-center gap-1 text-[10px]"><FileText size={18} /> PDF</span>
                     )}
                   </a>
                 ))}
@@ -374,13 +526,84 @@ const LeadDetail = ({ lead, onClose, onStatus, onGenerate }) => {
             )}
           </div>
 
+          {lead.note && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Notes</div>
+              <p className="text-sm text-zinc-300 whitespace-pre-wrap">{lead.note}</p>
+            </div>
+          )}
+
           <div className="text-xs text-zinc-600 border-t border-zinc-800 pt-4">
             Lead ID: {lead.id}<br />
+            Source: {lead.source || '—'}{lead.affiliateCode ? ` · code ${lead.affiliateCode}` : ''}<br />
             Created: {new Date(lead.createdAt).toLocaleString()}
             {lead.updatedAt && <><br />Updated: {new Date(lead.updatedAt).toLocaleString()}</>}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const AddLeadModal = ({ affCodes, onClose, onCreate, onCreated }) => {
+  const [form, setForm] = useState({ restaurantName: '', ownerName: '', email: '', phone: '', instagram: '', note: '', status: 'new', affiliateCode: '' })
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    try { const c = localStorage.getItem('fl_admin_lead_code') || ''; if (c) setForm((f) => ({ ...f, affiliateCode: c })) } catch (e) {}
+  }, [])
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!form.restaurantName.trim() || !form.ownerName.trim()) { toast.error('Restaurant and owner are required'); return }
+    setSaving(true)
+    try {
+      const code = form.affiliateCode.trim().toUpperCase()
+      const lead = await onCreate({ ...form, affiliateCode: code })
+      try { if (code) localStorage.setItem('fl_admin_lead_code', code) } catch (er) {}
+      toast.success('Lead added')
+      onCreated(lead)
+    } catch (err) { toast.error(err.message) } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <Card className="relative bg-zinc-950 border-zinc-800 w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">Add lead</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={18} /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label className="text-zinc-300 text-xs mb-1 block">Restaurant *</Label><Input value={form.restaurantName} onChange={set('restaurantName')} className="bg-zinc-900 border-zinc-800" /></div>
+            <div><Label className="text-zinc-300 text-xs mb-1 block">Owner *</Label><Input value={form.ownerName} onChange={set('ownerName')} className="bg-zinc-900 border-zinc-800" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label className="text-zinc-300 text-xs mb-1 block">Email</Label><Input type="email" value={form.email} onChange={set('email')} className="bg-zinc-900 border-zinc-800" /></div>
+            <div><Label className="text-zinc-300 text-xs mb-1 block">Phone</Label><Input value={form.phone} onChange={set('phone')} className="bg-zinc-900 border-zinc-800" /></div>
+          </div>
+          <div><Label className="text-zinc-300 text-xs mb-1 block">Instagram</Label><Input value={form.instagram} onChange={set('instagram')} placeholder="@handle" className="bg-zinc-900 border-zinc-800" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-zinc-300 text-xs mb-1 block">Status</Label>
+              <select value={form.status} onChange={set('status')} className="w-full bg-zinc-900 border border-zinc-800 rounded-lg text-sm px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500">
+                {PIPELINE.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label className="text-zinc-300 text-xs mb-1 block">Referred by (code)</Label>
+              <Input list="fl-aff-codes" value={form.affiliateCode} onChange={set('affiliateCode')} placeholder="FL-…" className="bg-zinc-900 border-zinc-800 font-mono" />
+              <datalist id="fl-aff-codes">{(affCodes || []).map((c) => <option key={c} value={c} />)}</datalist>
+            </div>
+          </div>
+          <div><Label className="text-zinc-300 text-xs mb-1 block">Notes</Label><Textarea value={form.note} onChange={set('note')} rows={2} className="bg-zinc-900 border-zinc-800 resize-none" /></div>
+          <p className="text-[11px] text-zinc-600">No photos needed now — add dish/menu photos later from the lead. Credited to the code above (defaults to your last-used).</p>
+          <Button type="submit" disabled={saving} className="w-full bg-orange-500 hover:bg-orange-600 text-white">{saving ? 'Adding…' : 'Add lead'}</Button>
+        </form>
+      </Card>
     </div>
   )
 }

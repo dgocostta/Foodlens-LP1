@@ -48,6 +48,19 @@ const CopyBlock = ({ asset, substitute }) => {
   const active = variants[vi] || variants[0] || { body: '' }
   const text = substitute(active.body || '')
   const useDropdown = variants.length > 4
+  const isEmail = /^\s*Subject:/i.test(text)
+  const sendEmail = () => {
+    const lines = text.split('\n')
+    let subject = ''
+    let start = 0
+    if (/^\s*Subject:/i.test(lines[0] || '')) {
+      subject = lines[0].replace(/^\s*Subject:\s*/i, '')
+      start = 1
+      if ((lines[start] || '').trim() === '') start += 1
+    }
+    const mailBody = lines.slice(start).join('\n')
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailBody)}`
+  }
   return (
     <Card className="bg-zinc-900/70 border-zinc-800 p-4">
       <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
@@ -55,9 +68,16 @@ const CopyBlock = ({ asset, substitute }) => {
           <h4 className="font-semibold text-sm">{asset.title}</h4>
           {asset.note && <p className="text-xs text-zinc-500 mt-0.5">{asset.note}</p>}
         </div>
-        <Button size="sm" onClick={() => copyText(text)} className="bg-orange-500 hover:bg-orange-600 text-white flex-shrink-0">
-          <Copy size={13} className="mr-1.5" /> Copy
-        </Button>
+        <div className="flex gap-2 flex-shrink-0">
+          {isEmail && (
+            <Button size="sm" variant="outline" onClick={sendEmail} className="border-zinc-700">
+              <Mail size={13} className="mr-1.5" /> Send
+            </Button>
+          )}
+          <Button size="sm" onClick={() => copyText(text)} className="bg-orange-500 hover:bg-orange-600 text-white">
+            <Copy size={13} className="mr-1.5" /> Copy
+          </Button>
+        </div>
       </div>
       {variants.length > 1 && (
         useDropdown ? (

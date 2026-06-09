@@ -112,14 +112,16 @@ async function route(request, method) {
       const body = await request.json()
       const scope = body?.scope
       const contentType = String(body?.contentType || 'application/octet-stream')
-      if (!/^image\//.test(contentType) && !/^video\//.test(contentType)) {
-        return cors(NextResponse.json({ error: 'only image or video files are allowed' }, { status: 400 }))
-      }
+      const kind = String(body?.kind || '')
+      const isImage = /^image\//.test(contentType)
+      const isVideo = /^video\//.test(contentType)
+      const isPdf = contentType === 'application/pdf'
       const safeName = String(body?.filename || 'upload').replace(/[^\w.\-]+/g, '_').slice(-80)
       let storagePath
       if (scope === 'media') {
         const adminKey = (request.headers.get('x-admin-key') || '').trim()
         if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+        if (!isImage && !isVideo) return cors(NextResponse.json({ error: 'only image or video files are allowed' }, { status: 400 }))
         storagePath = `media/${uuidv4()}-${safeName}`
       } else if (scope === 'lead') {
         if (!db) return notConfigured()
@@ -127,7 +129,14 @@ async function route(request, method) {
         if (!leadId) return cors(NextResponse.json({ error: 'leadId required' }, { status: 400 }))
         const snap = await db.collection('leads').doc(leadId).get()
         if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
-        storagePath = `leads/${leadId}/${uuidv4()}-${safeName}`
+        if (kind === 'menu') {
+          // Menus are often PDFs grabbed from a restaurant's site — allow PDF too.
+          if (!isImage && !isPdf) return cors(NextResponse.json({ error: 'menu must be an image or PDF' }, { status: 400 }))
+          storagePath = `leads/${leadId}/menu/${uuidv4()}-${safeName}`
+        } else {
+          if (!isImage && !isVideo) return cors(NextResponse.json({ error: 'only image or video files are allowed' }, { status: 400 }))
+          storagePath = `leads/${leadId}/${uuidv4()}-${safeName}`
+        }
       } else if (scope === 'affiliate') {
         if (!db) return notConfigured()
         if (!/^image\//.test(contentType)) return cors(NextResponse.json({ error: 'avatar must be an image' }, { status: 400 }))
@@ -239,6 +248,28 @@ async function route(request, method) {
         return cors(NextResponse.json({ ok: true, photo: { ...photo, url: signedUrl } }))
       }
 
+      // Record a direct-uploaded MENU file (image or PDF): POST /api/leads/<id>/menu-photo-record
+      if (id && sub === 'menu-photo-record' && method === 'POST') {
+        if (!db) return notConfigured()
+        const ref = db.collection('leads').doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        const body = await request.json()
+        const filePath = String(body?.path || '')
+        if (!filePath.startsWith(`leads/${id}/menu/`)) return cors(NextResponse.json({ error: 'invalid path' }, { status: 400 }))
+        const menuPhoto = {
+          path: filePath,
+          name: String(body?.name || 'menu').slice(0, 120),
+          contentType: String(body?.contentType || 'application/octet-stream').slice(0, 80),
+          size: Number(body?.size) || 0,
+          uploadedAt: new Date().toISOString(),
+        }
+        const { FieldValue } = await import('firebase-admin/firestore')
+        await ref.set({ menuPhotos: FieldValue.arrayUnion(menuPhoto), updatedAt: new Date().toISOString() }, { merge: true })
+        const signedUrl = await signedUrlFor(filePath)
+        return cors(NextResponse.json({ ok: true, menuPhoto: { ...menuPhoto, url: signedUrl } }))
+      }
+
       // Create lead: POST /api/leads
       if (!id && method === 'POST') {
         if (!db) return notConfigured()
@@ -253,10 +284,13 @@ async function route(request, method) {
         // Referral attribution. If a code is supplied, it must resolve to an
         // approved affiliate — the affiliate name is taken from the record
         // (authoritative), never trusted from the client.
+        // Admin-created leads (Diego loading pre-launch contacts) carry source
+        // 'admin' but can still be credited to an affiliate code.
+        const isAdmin = (request.headers.get('x-admin-key') || '').trim() === ADMIN_KEY
         let affiliateCode = ''
         let affiliateName = ''
         let affiliateDocId = ''
-        let source = 'field-app'
+        let source = isAdmin ? 'admin' : 'field-app'
         const rawCode = String(body?.affiliateCode || '').trim().toUpperCase()
         if (rawCode) {
           const aSnap = await db
@@ -271,8 +305,16 @@ async function route(request, method) {
           affiliateCode = rawCode
           affiliateName = String(aDoc.data().name || '').slice(0, 200)
           affiliateDocId = aDoc.id
-          source = 'promoter'
+          if (!isAdmin) source = 'promoter'
         }
+
+        const LEAD_STATUSES = ['new', 'contacted', 'photos_uploaded', 'video_generating', 'video_sent', 'won', 'lost']
+        const sanitizedLocations = Array.isArray(body?.locations)
+          ? body.locations.slice(0, 25).map((l) => ({
+              name: String(l?.name || '').slice(0, 200),
+              area: String(l?.area || '').slice(0, 200),
+            })).filter((l) => l.name || l.area)
+          : []
 
         const cleanEmail = String(email || '').trim().toLowerCase()
         const lead = {
@@ -288,10 +330,13 @@ async function route(request, method) {
               }))
             : [],
           photos: [],
+          menuPhotos: [],
           video: null,
           affiliateCode,
           affiliateName,
-          status: 'new',
+          locations: sanitizedLocations,
+          note: isAdmin ? String(body?.note || '').slice(0, 2000) : '',
+          status: isAdmin && body?.status && LEAD_STATUSES.includes(body.status) ? body.status : 'new',
           source,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -367,9 +412,15 @@ async function route(request, method) {
                 url: await signedUrlFor(p.path),
               })),
             )
+            const menuPhotos = await Promise.all(
+              (data.menuPhotos || []).map(async (p) => ({
+                ...p,
+                url: await signedUrlFor(p.path),
+              })),
+            )
             let video = data.video || null
             if (video?.path) video = { ...video, url: await signedUrlFor(video.path) }
-            return { id: d.id, ...data, photos, video }
+            return { id: d.id, ...data, photos, menuPhotos, video }
           }),
         )
 
@@ -392,6 +443,12 @@ async function route(request, method) {
         const update = { updatedAt: new Date().toISOString() }
         if (body?.status && ALLOWED.includes(body.status)) update.status = body.status
         if (typeof body?.note === 'string') update.note = body.note.slice(0, 2000)
+        if (Array.isArray(body?.locations)) {
+          update.locations = body.locations.slice(0, 25).map((l) => ({
+            name: String(l?.name || '').slice(0, 200),
+            area: String(l?.area || '').slice(0, 200),
+          })).filter((l) => l.name || l.area)
+        }
         await ref.set(update, { merge: true })
         return cors(NextResponse.json({ ok: true, ...update }))
       }
@@ -628,7 +685,7 @@ async function route(request, method) {
         const affiliates = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         const counts = {}
         const won = {}
-        const leadsSnap = await db.collection('leads').where('source', '==', 'promoter').limit(2000).get()
+        const leadsSnap = await db.collection('leads').where('affiliateCode', '!=', '').limit(2000).get()
         leadsSnap.docs.forEach((d) => {
           const c = d.data().affiliateCode
           if (!c) return

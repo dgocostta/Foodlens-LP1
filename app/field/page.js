@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
   Store, User, Instagram, Phone, Mail, Camera, Upload, ArrowRight, Check,
-  Tag, KeyRound, BookOpen, LogOut, Plus, CheckCircle2, Lock,
+  Tag, KeyRound, BookOpen, LogOut, Plus, CheckCircle2, Lock, FileText,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
-import { uploadLeadFile } from '@/lib/upload'
+import { uploadLeadFile, uploadLeadMenuFile } from '@/lib/upload'
 
 const GRID_BG = {
   backgroundImage: 'radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)',
@@ -32,6 +32,8 @@ export default function FieldPage() {
   const [submitting, setSubmitting] = useState(false)
   const [sessionLeads, setSessionLeads] = useState([])
   const fileRef = useRef(null)
+  const menuRef = useRef(null)
+  const [menuFiles, setMenuFiles] = useState([])
 
   // Pick up a code from the URL (?code=) or localStorage and validate it.
   useEffect(() => {
@@ -81,6 +83,12 @@ export default function FieldPage() {
     if (next.length) toast.success(`${next.length} added`)
   }
 
+  const handleMenuUpload = (e) => {
+    const files = Array.from(e.target.files || [])
+    setMenuFiles((arr) => [...arr, ...files].slice(0, 10))
+    if (files.length) toast.success(`${files.length} menu file${files.length > 1 ? 's' : ''} added`)
+  }
+
   const submit = async (e) => {
     e.preventDefault()
     if (!form.restaurantName || !form.ownerName) {
@@ -102,9 +110,11 @@ export default function FieldPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save lead')
       const newId = data.lead?.id || ''
       dishes.forEach((d) => { if (d.file) uploadLeadFile(newId, d.file).catch(() => {}) })
+      menuFiles.forEach((f) => uploadLeadMenuFile(newId, f).catch(() => {}))
       setSessionLeads((arr) => [{ restaurantName: form.restaurantName, ownerName: form.ownerName, at: Date.now() }, ...arr])
       setForm(EMPTY)
       setDishes([])
+      setMenuFiles([])
       toast.success('Lead added and credited to you 🎉')
     } catch (err) {
       toast.error(err.message)
@@ -257,6 +267,18 @@ export default function FieldPage() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Menu photo (optional) */}
+            <div>
+              <Label className="text-zinc-300 mb-1.5 flex items-center gap-1.5 text-sm"><FileText size={14} /> Menu photo or PDF (optional)</Label>
+              <input ref={menuRef} type="file" accept="image/*,application/pdf" multiple onChange={handleMenuUpload} className="hidden" />
+              <button type="button" onClick={() => menuRef.current?.click()}
+                className="tap-scale w-full border-2 border-dashed border-zinc-700 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-4 text-center group">
+                <Upload size={22} className="mx-auto mb-1.5 text-zinc-500 group-hover:text-orange-500 transition" />
+                <div className="text-sm font-semibold text-zinc-200">Tap to add their menu</div>
+                <div className="text-xs text-zinc-500 mt-1">{menuFiles.length} file{menuFiles.length === 1 ? '' : 's'}</div>
+              </button>
             </div>
 
             <Button type="submit" disabled={submitting} className="tap-scale w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold glow-orange">

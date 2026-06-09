@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { DEFAULT_DISHES } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
-import { uploadLeadFile } from '@/lib/upload'
+import { uploadLeadFile, uploadLeadMenuFile } from '@/lib/upload'
 
 const PhoneFrame = ({ children, className = '' }) => (
   <div className={`relative mx-auto ${className}`}>
@@ -201,6 +201,8 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const fileRef = useRef(null)
+  const menuRef = useRef(null)
+  const [menuFiles, setMenuFiles] = useState([])
   const [ref, setRef] = useState({ code: '', name: '' })
 
   // Referral attribution: capture ?ref=CODE, validate it, and (if good) tag the
@@ -228,6 +230,12 @@ export default function App() {
     if (newDishes.length) toast.success(`${newDishes.length} dish${newDishes.length > 1 ? 'es' : ''} added`)
   }
 
+  const handleMenuUpload = (e) => {
+    const files = Array.from(e.target.files || [])
+    setMenuFiles((arr) => [...arr, ...files].slice(0, 10))
+    if (files.length) toast.success(`${files.length} menu file${files.length > 1 ? 's' : ''} added`)
+  }
+
   const submit = async (e) => {
     e.preventDefault()
     if (!form.restaurantName || !form.ownerName) {
@@ -250,6 +258,7 @@ export default function App() {
       const newId = data.lead?.id || ''
       // Upload the actual dish files in the background (don't block the redirect).
       dishes.forEach((d) => { if (d.file) uploadLeadFile(newId, d.file).catch(() => {}) })
+      menuFiles.forEach((f) => uploadLeadMenuFile(newId, f).catch(() => {}))
       toast.success("You're in. Let's see the magic.")
       const params = new URLSearchParams({ r: form.restaurantName, o: form.ownerName, id: newId })
       window.location.href = `/onboarding?${params.toString()}`
@@ -505,6 +514,20 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Menu photo (optional) */}
+                <div>
+                  <Label className="text-zinc-300 mb-2 flex items-center gap-1.5 text-sm md:text-base">
+                    <FileText size={14} /> Got your current menu? Add a photo or PDF (optional)
+                  </Label>
+                  <input ref={menuRef} type="file" accept="image/*,application/pdf" multiple onChange={handleMenuUpload} className="hidden" />
+                  <button type="button" onClick={() => menuRef.current?.click()}
+                    className="tap-scale w-full border-2 border-dashed border-zinc-700 hover:border-orange-500 hover:bg-orange-500/5 transition rounded-2xl p-5 text-center group">
+                    <Upload size={24} className="mx-auto mb-2 text-zinc-500 group-hover:text-orange-500 transition" />
+                    <div className="text-sm font-semibold text-zinc-200">Tap to add your menu (image or PDF)</div>
+                    <div className="text-xs text-zinc-500 mt-1">{menuFiles.length} file{menuFiles.length === 1 ? '' : 's'} — helps us build your video menu faster</div>
+                  </button>
                 </div>
 
                 <Button type="submit" disabled={submitting} className="tap-scale w-full tablet-btn-lg bg-orange-500 hover:bg-orange-600 text-white glow-orange">
