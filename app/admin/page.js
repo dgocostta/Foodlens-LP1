@@ -13,12 +13,13 @@ import {
   Save, RotateCcw, ExternalLink, Play, X, Copy, MessageCircle, Wand2, Image as ImageIcon,
   Video, ListChecks, Clapperboard, Upload,
   UserPlus, Check, Ban, Pause, Clock, Filter, Tag, Send, ChevronRight,
-  Plus, Trash2, MapPin, FileText,
+  Plus, Trash2, MapPin, FileText, Database,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { DEFAULT_DISHES, DEFAULT_DECK } from '@/lib/foodlens-data'
 import { Logo } from '@/components/logo'
 import { uploadMediaFile, uploadLeadFile, uploadLeadMenuFile } from '@/lib/upload'
+import { LeadBankTab } from './lead-bank'
 
 const PIPELINE = ['new', 'contacted', 'photos_uploaded', 'video_generating', 'video_sent', 'won', 'lost']
 
@@ -206,6 +207,10 @@ export default function AdminPage() {
               className={`text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${tab === 'leads' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
               <ListChecks size={14} /> Leads
             </button>
+            <button onClick={() => setTab('leadbank')}
+              className={`text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${tab === 'leadbank' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
+              <Database size={14} /> Lead Bank
+            </button>
             <button onClick={() => setTab('media')}
               className={`text-sm px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${tab === 'media' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}>
               <Clapperboard size={14} /> Media
@@ -302,6 +307,7 @@ export default function AdminPage() {
             </Card>
           </>
         )}
+        {tab === 'leadbank' && <LeadBankTab adminKey={key} />}
         {tab === 'media' && <MediaManagement adminKey={key} />}
         {tab === 'affiliates' && <AffiliatesManagement adminKey={key} />}
       </div>

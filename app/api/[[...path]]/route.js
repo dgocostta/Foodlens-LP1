@@ -25,7 +25,7 @@ const SIGNED_URL_TTL_MS = 60 * 60 * 1000 // 1 hour
 
 function cors(res) {
   res.headers.set('Access-Control-Allow-Origin', '*')
-  res.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+  res.headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Admin-Key')
   return res
 }
@@ -49,6 +49,112 @@ function genAffiliateCode(name) {
   let suffix = ''
   for (let i = 0; i < 3; i += 1) suffix += chars[Math.floor(Math.random() * chars.length)]
   return `FL-${base}-${suffix}`
+}
+
+// ---- Lead Bank (cold scraped prospects — collection `leadBank`, separate from inbound `leads`) ----
+
+const BANK_STATUSES = ['new', 'contacted', 'interested', 'not_interested', 'converted']
+// Statuses an affiliate may set on a lead assigned to them ('new' is system-only).
+const BANK_AFFILIATE_STATUSES = ['contacted', 'interested', 'not_interested', 'converted']
+const BANK_EQ_FILTERS = ['country', 'city', 'cuisine', 'cuisineGroup', 'area', 'status', 'batchId']
+
+// Info fields mirrored from the scrape — safe to refresh on re-import.
+// CRM fields (status, assignedTo, notes, …) are NEVER touched on re-import.
+function sanitizeBankInfo(raw) {
+  const s = (v, n) => String(v ?? '').trim().slice(0, n)
+  const flag = (v) => (typeof v === 'boolean' ? v : s(v, 20))
+  return {
+    restaurant: s(raw?.restaurant, 200),
+    cuisine: s(raw?.cuisine, 120),
+    cuisineGroup: s(raw?.cuisineGroup, 120),
+    serviceType: s(raw?.serviceType, 120),
+    dineIn: flag(raw?.dineIn),
+    takeaway: flag(raw?.takeaway),
+    delivery: flag(raw?.delivery),
+    price: s(raw?.price, 40),
+    rating: Number(raw?.rating) || 0,
+    reviews: Number(raw?.reviews) || 0,
+    phone: s(raw?.phone, 50),
+    website: s(raw?.website, 500),
+    email: s(raw?.email, 320).toLowerCase(),
+    instagram: s(raw?.instagram, 300),
+    facebook: s(raw?.facebook, 300),
+    area: s(raw?.area, 200),
+    address: s(raw?.address, 400),
+    googleMaps: s(raw?.googleMaps, 500),
+    city: s(raw?.city, 120),
+    country: s(raw?.country, 120),
+  }
+}
+
+function normalizeBankStatus(v) {
+  const st = String(v || '').trim().toLowerCase().replace(/[\s-]+/g, '_')
+  return BANK_STATUSES.includes(st) ? st : 'new'
+}
+
+// Split a filter object into what Firestore can serve with equality-only
+// queries (merged single-field indexes — no composite indexes needed) and
+// what gets filtered in JS (inequalities / substring search).
+function bankFilterParts(filter) {
+  const eq = {}
+  for (const f of BANK_EQ_FILTERS) {
+    const v = String(filter?.[f] || '').trim()
+    if (v) eq[f] = v
+  }
+  return {
+    eq,
+    assigned: String(filter?.assigned || '').trim(), // '', 'yes', 'no', or an affiliate code
+    ratingMin: Number(filter?.ratingMin) || 0,
+    q: String(filter?.q || filter?.search || '').trim().toLowerCase(),
+  }
+}
+
+function buildBankQuery(col, parts) {
+  let query = col
+  Object.entries(parts.eq).forEach(([k, v]) => { query = query.where(k, '==', v) })
+  if (parts.assigned === 'no') query = query.where('assignedTo', '==', '')
+  else if (parts.assigned && parts.assigned !== 'yes') query = query.where('assignedTo', '==', parts.assigned.toUpperCase())
+  return query
+}
+
+function applyBankJsFilters(items, parts) {
+  let out = items
+  if (parts.assigned === 'yes') out = out.filter((x) => x.assignedTo)
+  if (parts.ratingMin > 0) out = out.filter((x) => (Number(x.rating) || 0) >= parts.ratingMin)
+  if (parts.q) {
+    out = out.filter((x) =>
+      [x.restaurant, x.address, x.area, x.email, x.phone]
+        .some((v) => String(v || '').toLowerCase().includes(parts.q)),
+    )
+  }
+  return out
+}
+
+// Resolve "select all in filter" to concrete doc ids (capped).
+async function collectBankIds(db, filter, cap = 2000) {
+  const { FieldPath } = await import('firebase-admin/firestore')
+  const parts = bankFilterParts(filter)
+  const base = buildBankQuery(db.collection('leadBank'), parts).orderBy(FieldPath.documentId())
+  const ids = []
+  let cursor = null
+  while (ids.length < cap) {
+    const snap = await (cursor ? base.startAfter(cursor) : base).limit(500).get()
+    if (snap.empty) break
+    const rows = applyBankJsFilters(snap.docs.map((d) => ({ id: d.id, ...d.data() })), parts)
+    rows.forEach((r) => ids.push(r.id))
+    cursor = snap.docs[snap.docs.length - 1].id
+    if (snap.size < 500) break
+  }
+  return ids.slice(0, cap)
+}
+
+async function approvedAffiliateByCode(db, code) {
+  const c = String(code || '').trim().toUpperCase()
+  if (!c) return null
+  const snap = await db.collection('affiliates').where('code', '==', c).limit(1).get()
+  const doc = snap.docs[0]
+  if (!doc || doc.data().status !== 'approved') return null
+  return { id: doc.id, ...doc.data() }
 }
 
 function notConfigured() {
@@ -759,6 +865,254 @@ async function route(request, method) {
       }
     }
 
+    // Lead Bank — cold scraped prospects (collection `leadBank`, doc id = placeId)
+    if (resource === 'lead-bank') {
+      if (!db) return notConfigured()
+      const col = db.collection('leadBank')
+      const now = new Date().toISOString()
+
+      // Affiliate-facing (code-gated, no admin key): GET /api/lead-bank/assigned?code=
+      if (id === 'assigned' && !sub && method === 'GET') {
+        const code = String(url.searchParams.get('code') || '').trim().toUpperCase()
+        if (!code) return cors(NextResponse.json({ error: 'code required' }, { status: 400 }))
+        const aff = await approvedAffiliateByCode(db, code)
+        if (!aff) return cors(NextResponse.json({ error: 'invalid or inactive code' }, { status: 400 }))
+        const snap = await col.where('assignedTo', '==', code).limit(500).get()
+        const items = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => String(b.assignedAt || '').localeCompare(String(a.assignedAt || '')))
+        return cors(NextResponse.json({ ok: true, items }))
+      }
+
+      // Affiliate work action (code must own the record): POST /api/lead-bank/assigned/update
+      // body: { code, id, status?, notes? }
+      if (id === 'assigned' && sub === 'update' && method === 'POST') {
+        const body = await request.json()
+        const code = String(body?.code || '').trim().toUpperCase()
+        const rowId = String(body?.id || '')
+        if (!code || !rowId) return cors(NextResponse.json({ error: 'code and id required' }, { status: 400 }))
+        const aff = await approvedAffiliateByCode(db, code)
+        if (!aff) return cors(NextResponse.json({ error: 'invalid or inactive code' }, { status: 400 }))
+        const ref = col.doc(rowId)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        if (snap.data().assignedTo !== code) return cors(NextResponse.json({ error: 'not assigned to you' }, { status: 403 }))
+        const update = { updatedAt: now }
+        if (body?.status && BANK_AFFILIATE_STATUSES.includes(body.status)) {
+          update.status = body.status
+          if (body.status === 'contacted') update.lastContacted = now
+        }
+        if (typeof body?.notes === 'string') update.notes = body.notes.slice(0, 2000)
+        await ref.set(update, { merge: true })
+        return cors(NextResponse.json({ ok: true, item: { id: rowId, ...snap.data(), ...update } }))
+      }
+
+      // Everything below is admin-only.
+      const adminKey = (request.headers.get('x-admin-key') || '').trim()
+      if (adminKey !== ADMIN_KEY) return cors(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
+
+      // Bulk upsert by placeId: POST /api/lead-bank/import
+      // body: { batch: { source, city, country }, leads: [...] }
+      // The scraper chat, CSV/JSON upload, and manual add all land here.
+      if (id === 'import' && method === 'POST') {
+        const body = await request.json()
+        const rows = Array.isArray(body?.leads) ? body.leads.slice(0, 2000) : []
+        if (!rows.length) return cors(NextResponse.json({ error: 'leads array required' }, { status: 400 }))
+        const source = String(body?.batch?.source || 'import').slice(0, 80)
+        const batchCity = String(body?.batch?.city || '').slice(0, 120)
+        const batchCountry = String(body?.batch?.country || '').slice(0, 120)
+        const batchId = uuidv4()
+        let inserted = 0
+        let updated = 0
+
+        for (let start = 0; start < rows.length; start += 300) {
+          const chunk = rows.slice(start, start + 300)
+          const prepared = chunk.map((raw) => {
+            const placeIdRaw = String(raw?.placeId || '').trim().replace(/[\/\s]+/g, '_').slice(0, 300)
+            return { docId: placeIdRaw || `manual-${uuidv4()}`, raw }
+          })
+          const snaps = await db.getAll(...prepared.map((p) => col.doc(p.docId)))
+          const write = db.batch()
+          snaps.forEach((snap, i) => {
+            const { docId, raw } = prepared[i]
+            const info = sanitizeBankInfo(raw)
+            info.placeId = docId
+            if (!info.city) info.city = batchCity
+            if (!info.country) info.country = batchCountry
+            if (snap.exists) {
+              // Refresh info fields with non-empty incoming values only —
+              // PRESERVE status / assignedTo / notes / follow-ups (manual work).
+              const update = { updatedAt: now, lastImportBatchId: batchId }
+              for (const [k, v] of Object.entries(info)) {
+                if (typeof v === 'boolean' || (typeof v === 'number' && v > 0) || (typeof v === 'string' && v)) update[k] = v
+              }
+              write.set(col.doc(docId), update, { merge: true })
+              updated += 1
+            } else {
+              write.set(col.doc(docId), {
+                ...info,
+                status: normalizeBankStatus(raw?.status),
+                assignedTo: '',
+                assignedName: String(raw?.assignedName || '').slice(0, 200),
+                assignedAt: null,
+                notes: String(raw?.notes || '').slice(0, 2000),
+                lastContacted: String(raw?.lastContacted || '').slice(0, 40),
+                nextFollowup: String(raw?.nextFollowup || '').slice(0, 40),
+                batchId,
+                source,
+                importedAt: now,
+                createdAt: now,
+                updatedAt: now,
+              })
+              inserted += 1
+            }
+          })
+          await write.commit()
+        }
+
+        await db.collection('leadBankBatches').doc(batchId).set({
+          batchId, source, city: batchCity, country: batchCountry,
+          total: rows.length, inserted, updated, createdAt: now,
+        })
+        return cors(NextResponse.json({ ok: true, batchId, inserted, updated }))
+      }
+
+      // Facets + KPI counts (single slim scan — fine at Lead Bank scale, admin-only):
+      // GET /api/lead-bank/facets
+      if (id === 'facets' && method === 'GET') {
+        const snap = await col
+          .select('country', 'city', 'cuisine', 'cuisineGroup', 'area', 'status', 'assignedTo')
+          .limit(20000)
+          .get()
+        const counts = { total: 0, new: 0, assigned: 0 }
+        const countries = {}
+        const cities = {}
+        const cityCountry = {}
+        const cuisines = {}
+        const cuisineGroups = {}
+        const areas = {}
+        const statuses = {}
+        const bump = (map, key) => { if (key) map[key] = (map[key] || 0) + 1 }
+        snap.docs.forEach((d) => {
+          const x = d.data()
+          counts.total += 1
+          if ((x.status || 'new') === 'new') counts.new += 1
+          if (x.assignedTo) counts.assigned += 1
+          bump(countries, x.country)
+          bump(cities, x.city)
+          bump(cuisines, x.cuisine)
+          bump(cuisineGroups, x.cuisineGroup)
+          bump(areas, x.area)
+          bump(statuses, x.status || 'new')
+          if (x.city && x.country && !cityCountry[x.city]) cityCountry[x.city] = x.country
+        })
+        const batchesSnap = await db.collection('leadBankBatches').orderBy('createdAt', 'desc').limit(30).get()
+        const batches = batchesSnap.docs.map((d) => d.data())
+        return cors(NextResponse.json({ ...counts, countries, cities, cityCountry, cuisines, cuisineGroups, areas, statuses, batches }))
+      }
+
+      // Bulk action: POST /api/lead-bank/bulk
+      // body: { ids: [...] } OR { filter: {...} }, action: 'assign'|'status'|'delete', value
+      if (id === 'bulk' && method === 'POST') {
+        const body = await request.json()
+        const action = String(body?.action || '')
+        let ids = Array.isArray(body?.ids) ? body.ids.map((x) => String(x)).filter(Boolean).slice(0, 2000) : []
+        if (!ids.length && body?.filter && typeof body.filter === 'object') {
+          ids = await collectBankIds(db, body.filter)
+        }
+        if (!ids.length) return cors(NextResponse.json({ error: 'no rows matched' }, { status: 400 }))
+
+        let patch = null
+        if (action === 'assign') {
+          const code = String(body?.value || '').trim().toUpperCase()
+          if (!code) {
+            patch = { assignedTo: '', assignedName: '', assignedAt: null }
+          } else {
+            const aff = await approvedAffiliateByCode(db, code)
+            if (!aff) return cors(NextResponse.json({ error: 'invalid or inactive affiliate code' }, { status: 400 }))
+            patch = { assignedTo: code, assignedName: String(aff.name || '').slice(0, 200), assignedAt: now }
+          }
+        } else if (action === 'status') {
+          if (!BANK_STATUSES.includes(body?.value)) return cors(NextResponse.json({ error: 'invalid status' }, { status: 400 }))
+          patch = { status: body.value }
+        } else if (action !== 'delete') {
+          return cors(NextResponse.json({ error: 'invalid action' }, { status: 400 }))
+        }
+
+        for (let start = 0; start < ids.length; start += 400) {
+          const chunk = ids.slice(start, start + 400)
+          const write = db.batch()
+          chunk.forEach((docId) => {
+            const ref = col.doc(docId)
+            if (action === 'delete') write.delete(ref)
+            else write.set(ref, { ...patch, updatedAt: now }, { merge: true })
+          })
+          await write.commit()
+        }
+        return cors(NextResponse.json({ ok: true, action, count: ids.length }))
+      }
+
+      // List with filters + cursor pagination: GET /api/lead-bank
+      // Equality filters run in Firestore (merged single-field indexes, ordered
+      // by doc id — no composite indexes needed). assigned=yes / ratingMin / q
+      // are JS-filtered over a scan window, so filtered pages may return fewer
+      // than `limit` while still carrying a nextCursor.
+      if (!id && method === 'GET') {
+        const parts = bankFilterParts(Object.fromEntries(url.searchParams))
+        const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 100, 1), 250)
+        const cursor = String(url.searchParams.get('cursor') || '').trim()
+        const { FieldPath } = await import('firebase-admin/firestore')
+        let query = buildBankQuery(col, parts).orderBy(FieldPath.documentId())
+        if (cursor) query = query.startAfter(cursor)
+        const needsJs = parts.assigned === 'yes' || parts.ratingMin > 0 || !!parts.q
+        const windowSize = needsJs ? Math.min(500, limit * 4) : limit
+        const snap = await query.limit(windowSize).get()
+        const scannedFull = snap.size === windowSize
+        const lastScannedId = snap.size ? snap.docs[snap.size - 1].id : null
+        let items = applyBankJsFilters(snap.docs.map((d) => ({ id: d.id, ...d.data() })), parts)
+        let nextCursor = null
+        if (items.length > limit) {
+          items = items.slice(0, limit)
+          nextCursor = items[items.length - 1].id
+        } else if (scannedFull) {
+          nextCursor = lastScannedId
+        }
+        return cors(NextResponse.json({ items, nextCursor }))
+      }
+
+      // Update one prospect: PATCH /api/lead-bank/<id>
+      if (id && !sub && method === 'PATCH') {
+        const ref = col.doc(id)
+        const snap = await ref.get()
+        if (!snap.exists) return cors(NextResponse.json({ error: 'lead not found' }, { status: 404 }))
+        const body = await request.json()
+        const update = { updatedAt: now }
+        if (body?.status && BANK_STATUSES.includes(body.status)) update.status = body.status
+        if (typeof body?.notes === 'string') update.notes = body.notes.slice(0, 2000)
+        if (typeof body?.lastContacted === 'string') update.lastContacted = body.lastContacted.slice(0, 40)
+        if (typeof body?.nextFollowup === 'string') update.nextFollowup = body.nextFollowup.slice(0, 40)
+        if (body?.assignedTo !== undefined) {
+          const code = String(body.assignedTo || '').trim().toUpperCase()
+          if (!code) {
+            update.assignedTo = ''
+            update.assignedName = ''
+            update.assignedAt = null
+          } else {
+            const aff = await approvedAffiliateByCode(db, code)
+            if (!aff) return cors(NextResponse.json({ error: 'invalid or inactive affiliate code' }, { status: 400 }))
+            update.assignedTo = code
+            update.assignedName = String(aff.name || '').slice(0, 200)
+            update.assignedAt = now
+          }
+        }
+        for (const f of ['restaurant', 'cuisine', 'area', 'address', 'phone', 'email', 'website', 'instagram']) {
+          if (typeof body?.[f] === 'string') update[f] = body[f].trim().slice(0, 500)
+        }
+        await ref.set(update, { merge: true })
+        return cors(NextResponse.json({ ok: true, item: { id, ...snap.data(), ...update } }))
+      }
+    }
+
     // Settings (media management for the demo dishes)
     if (resource === 'settings' && id === 'media') {
       if (!db) return notConfigured()
@@ -852,6 +1206,9 @@ export async function POST(request) {
 }
 export async function PUT(request) {
   return route(request, 'PUT')
+}
+export async function PATCH(request) {
+  return route(request, 'PATCH')
 }
 export async function DELETE(request) {
   return route(request, 'DELETE')

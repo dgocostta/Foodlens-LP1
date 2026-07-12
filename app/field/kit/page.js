@@ -14,6 +14,7 @@ import {
   GraduationCap, ShieldCheck, TrendingUp, Crown, Gift, Award,
   Video, MonitorPlay, LayoutTemplate, Trophy, Home, CheckCircle2, Circle,
   ListChecks, ClipboardList, Plus, Trash2,
+  Store, Phone, Globe, MapPin, Star,
 } from 'lucide-react'
 import { Logo } from '@/components/logo'
 import {
@@ -331,6 +332,129 @@ const WorkbookPanel = ({ workbook, onChange }) => {
   )
 }
 
+// Cold prospects from the admin Lead Bank assigned to this affiliate.
+// Work actions PATCH by code — the server checks the code owns each record.
+const BANK_WORK_STATUSES = [
+  { id: 'contacted', label: 'Contacted' },
+  { id: 'interested', label: 'Interested' },
+  { id: 'not_interested', label: 'Not interested' },
+  { id: 'converted', label: 'Converted' },
+]
+const BANK_LABELS = { new: 'To contact', contacted: 'Contacted', interested: 'Interested', not_interested: 'Not interested', converted: 'Converted' }
+
+const AssignedLeadsPanel = ({ code }) => {
+  const [items, setItems] = useState(null) // null = loading
+  const [notesDraft, setNotesDraft] = useState({})
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/lead-bank/assigned?code=${encodeURIComponent(code)}`)
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || 'Could not load your leads')
+        if (cancelled) return
+        setItems(data.items || [])
+        setNotesDraft(Object.fromEntries((data.items || []).map((i) => [i.id, i.notes || ''])))
+      } catch (e) {
+        if (!cancelled) { toast.error(e.message); setItems([]) }
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [code])
+
+  const update = async (rowId, body, okMsg) => {
+    setItems((arr) => (arr || []).map((i) => (i.id === rowId ? { ...i, ...body } : i)))
+    try {
+      const res = await fetch('/api/lead-bank/assigned/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, id: rowId, ...body }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Could not save')
+      if (data.item) setItems((arr) => (arr || []).map((i) => (i.id === rowId ? { ...i, ...data.item } : i)))
+      if (okMsg) toast.success(okMsg)
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const httpUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : u ? `https://${u}` : '')
+  const list = items || []
+  const done = list.filter((i) => ['converted', 'not_interested'].includes(i.status)).length
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">My leads to contact</h2>
+          <p className="text-sm text-zinc-500 mt-1">Restaurants assigned to you from HQ — call, pitch, and mark the outcome.</p>
+        </div>
+        {list.length > 0 && (
+          <div className="text-right">
+            <div className="text-2xl font-bold text-gradient-orange">{list.length}</div>
+            <div className="text-[11px] text-zinc-500">{done} closed out</div>
+          </div>
+        )}
+      </div>
+
+      {items === null ? (
+        <Card className="bg-zinc-900/40 border-zinc-800 p-8 text-center text-sm text-zinc-600">Loading your leads…</Card>
+      ) : list.length === 0 ? (
+        <Card className="bg-zinc-900/40 border-dashed border-zinc-800 p-8 text-center text-sm text-zinc-600">
+          Nothing assigned yet — when HQ assigns you restaurants to contact, they show up here.
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {list.map((r) => (
+            <Card key={r.id} className="bg-zinc-900/70 border-zinc-800 p-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm">{r.restaurant}</div>
+                  <div className="text-xs text-zinc-500 mt-0.5">
+                    {[r.cuisine, r.area].filter(Boolean).join(' · ')}
+                    {r.rating ? <span className="inline-flex items-center gap-0.5 ml-2 text-zinc-400"><Star size={10} className="text-orange-400 fill-orange-400" /> {r.rating}</span> : null}
+                  </div>
+                </div>
+                <Badge variant="outline" className="border-zinc-700 text-zinc-300 text-[10px] flex-shrink-0">{BANK_LABELS[r.status] || 'To contact'}</Badge>
+              </div>
+
+              {(r.phone || r.website || r.googleMaps) && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {r.phone && (
+                    <a href={`tel:${r.phone}`}><Button size="sm" variant="outline" className="border-zinc-700 h-8 text-xs"><Phone size={12} className="mr-1.5" /> {r.phone}</Button></a>
+                  )}
+                  {r.website && (
+                    <a href={httpUrl(r.website)} target="_blank" rel="noreferrer"><Button size="sm" variant="outline" className="border-zinc-700 h-8 text-xs"><Globe size={12} className="mr-1.5" /> Website</Button></a>
+                  )}
+                  {r.googleMaps && (
+                    <a href={httpUrl(r.googleMaps)} target="_blank" rel="noreferrer"><Button size="sm" variant="outline" className="border-zinc-700 h-8 text-xs"><MapPin size={12} className="mr-1.5" /> Maps</Button></a>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {BANK_WORK_STATUSES.map((s) => (
+                  <button key={s.id} onClick={() => update(r.id, { status: s.id }, `Marked "${s.label}"`)}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${r.status === s.id ? 'bg-orange-500 border-orange-500 text-white' : 'border-zinc-700 text-zinc-400 hover:border-orange-500/60'}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <Input
+                value={notesDraft[r.id] ?? ''}
+                onChange={(e) => setNotesDraft((n) => ({ ...n, [r.id]: e.target.value }))}
+                onBlur={() => { if ((notesDraft[r.id] || '') !== (r.notes || '')) update(r.id, { notes: notesDraft[r.id] || '' }, 'Note saved') }}
+                placeholder="Add a note — who you spoke to, when to follow up…"
+                className="bg-zinc-950 border-zinc-800 h-8 text-xs mt-3" />
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const [phase, setPhase] = useState('gate')
   const [codeInput, setCodeInput] = useState('')
@@ -474,6 +598,7 @@ export default function DashboardPage() {
           <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1">
             <SideItem icon={Home} label="Home" active={active === 'home'} onClick={() => setActive('home')} />
             <SideItem icon={ClipboardList} label="Workbook" active={active === 'workbook'} onClick={() => setActive('workbook')} />
+            <SideItem icon={Store} label="My leads" active={active === 'myleads'} onClick={() => setActive('myleads')} />
             {KIT_SECTIONS.map((s) => {
               const Icon = ICONS[s.icon] || Rocket
               return (
@@ -499,6 +624,8 @@ export default function DashboardPage() {
             <HomePanel affiliate={affiliate} unlocked={unlocked} trackingLink={trackingLink} />
           ) : active === 'workbook' ? (
             <WorkbookPanel workbook={affiliate.workbook} onChange={saveWorkbook} />
+          ) : active === 'myleads' ? (
+            <AssignedLeadsPanel code={affiliate.code} />
           ) : !unlocked ? (
             <Card className="bg-zinc-900/60 border-zinc-800 p-10 text-center">
               <div className="w-14 h-14 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mx-auto mb-4">
